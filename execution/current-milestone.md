@@ -2,16 +2,16 @@
 
 ## Milestone
 
-(no definido)
+Hito 01 — Core Multitenancy
 
 ---
 
 ## Phase
 
-- analysis | scope | execution | validation | finalization
+Execution (la base multitenant está establecida)
 
 ---
 
 ## Status
 
-- not started | in progress | blocked | completed
+en progreso

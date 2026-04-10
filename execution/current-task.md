@@ -2,16 +2,16 @@
 
 ## Task ID
 
-(no definido)
+hito-01-documentacion
 
 ---
 
 ## Description
 
-(no definido)
+Documentar el estado del Hito 01 — Core Multitenancy, incluyendo decisiones, errores, estado actual y pasos para reproducir la configuración inicial.
 
 ---
 
 ## Status
 
-- pending | in progress | blocked | completed
+completed

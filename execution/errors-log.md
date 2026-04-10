@@ -27,4 +27,8 @@ El orchestrator debe:
 
 ## Entries
 
-(vacío)
+- Fecha: 2026-04-10
+  - Error: psycopg2 OperationalError al ejecutar `pytest` y `makemigrations` porque el usuario `postgres`/`postgres` no autenticaba en la base local.
+  - Contexto: configuración inicial del proyecto cambiaba a PostgreSQL, pero la base `pos2` se creó y requiere credenciales de `pos2_ow`.
+  - Causa: los settings estaban apuntando a credenciales equivocadas (`postgres`/`postgres`).
+  - Acción tomada: actualicé `grastro/settings.py` para usar la base `pos2` y el usuario/contraseña correctos (`pos2_ow`/`1234`). Después de eso, `manage.py migrate` y `pytest` se ejecutan sin errores.
