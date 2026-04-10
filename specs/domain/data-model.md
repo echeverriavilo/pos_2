@@ -51,7 +51,7 @@
 
 - tenant: FK
 - product: FK
-- tipo: enum (COMPRA, AJUSTE, MERMA, VENTA)
+- tipo: enum (INGRESO, AJUSTE, VENTA)
 - cantidad: decimal
 
 ---

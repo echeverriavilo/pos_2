@@ -12,7 +12,7 @@ class TenantAwareQuerySet(models.QuerySet):
 
 class TenantAwareManager(models.Manager):
     def get_queryset(self):
-        queryset = super().get_queryset()
+        queryset = TenantAwareQuerySet(self.model, using=self._db)
         tenant = get_current_tenant()
         if tenant is None:
             return queryset
