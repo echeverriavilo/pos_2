@@ -1,16 +1,16 @@
 # Status — Hito 4: Órdenes
 
 ## Estado General
-PENDING
+COMPLETED
 
 ---
 
 ## Progreso
 
-- Modelos: NOT_STARTED
-- Servicios: NOT_STARTED
-- Flujos: NOT_STARTED
-- Testing: NOT_STARTED
+ - Modelos: COMPLETED
+ - Servicios: COMPLETED
+ - Flujos: COMPLETED
+ - Testing: COMPLETED
 
 ---
 
@@ -30,3 +30,9 @@ PENDING
 ## Bloqueos
 
 - Ninguno
+
+---
+
+## Review
+
+- El review-agent confirmó que los modelos, servicios y tests respetan `milestones/hito-04-order-engine/acceptance.md`, `specs/product/vision.md`, `specs/product/roles.md` y `specs/glossary.md`, incluyendo flujos MESA/RÁPIDO, estados permitidos y restricciones sobre ítems pagados. No se detectaron inconsistencias ni supuestos adicionales.

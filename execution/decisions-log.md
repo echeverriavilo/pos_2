@@ -41,3 +41,9 @@
   - Decisión: registrar en el log la creación de las apps `dining` y `orders`, el servicio `create_order_for_table` y los selectores que filtran mesas/órdenes activas; documentar la lista de estados válidos y las invariantes de `DiningTableService`.
   - Justificación: al mover orden explícitamente a `orders.services`, se facilita la evolución del motor de órdenes en el hito 4 y se mantiene la separación de responsabilidades entre servicios y selectores.
   - Impacto: la infraestructura queda organizada para el próximo hito y el log ya refleja las decisiones clave que acompañan a las nuevas apps.
+
+- Fecha: 2026-04-13
+  - Contexto: Hito 04 requiere un motor completo de órdenes con ítems, transiciones específicas por flujo y consistencia multitenant.
+  - Decisión: ampliar `apps.orders` con el modelo `OrderItem` (con tenant forzado), selectores dedicados y un servicio central que exponga `create_order`, `add_item`, `remove_item`, `recalculate_total` y `transition_order_state`, manteniendo en español los docstrings que describen cada paso.
+  - Justificación: el dominio exige que toda entidad pertenezca a un tenant y que los flujos de mesa/rápido transiten solo por estados permitidos; centralizar la lógica en servicios garantiza transacciones atómicas y facilita la integración futura con pagos y stock.
+  - Impacto: se garantiza la consistencia de total bruto y estados, se documentan las reglas en el servicio y los tests, y se deja trazabilidad de la decisión en el log del execution tracking.

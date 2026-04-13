@@ -2,7 +2,7 @@ from django.db import transaction
 
 from apps.dining.models import DiningTable
 from apps.dining.selectors import DiningTableSelector
-from apps.orders.services.create_order import OrderCreationError, create_order_for_table
+from apps.orders.services import OrderError, create_order_for_table
 
 
 class DiningTableError(Exception):
@@ -24,7 +24,7 @@ class DiningTableService:
         with transaction.atomic():
             try:
                 order = create_order_for_table(table=table)
-            except OrderCreationError as exc:
+            except OrderError as exc:
                 raise DiningTableError(str(exc)) from exc
             table.estado = DiningTable.States.OCUPADA
             table.save(update_fields=['estado'])

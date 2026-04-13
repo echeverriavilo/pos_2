@@ -32,6 +32,7 @@
 - `Category`, `Product`, `Ingredient` y `StockMovement` con managers tenant-aware y `InventoryService`.
 - `DiningTable` con estado/tenant filtering, selectors y servicios de transición.
 - `Order` y `OrderItem` mínimos con estados activos y servicios de creación/add/remove.
+  - `OrderItem` ahora fuerza tenant desde `order`, mantiene `precio_unitario_snapshot` inmutable y registra estados del flujo para respetar las invariantes del hito 4.
 
 ---
 
@@ -41,6 +42,7 @@
 - `InventoryService`: registra ingresos/ajustes/ventas y actualiza `Product.stock_actual` sin permitir stock negativo.
 - `DiningTableService`: gestiona `create_table`, `open_table`, `set_table_paying` y `reopen_table` manteniendo invariantes.
 - `create_order_for_table`: servicio canónico en `orders.services` para crear órdenes de mesa.
+  - `orders.services`: ahora expone `create_order`, `add_item`, `remove_item`, `recalculate_total` y `transition_order_state`, junto a selectores de órdenes e ítems por tenant/mesa, con docstrings en español y validaciones por flujo (mesa vs. rápido).
 
 ---
 

@@ -2,21 +2,21 @@
 
 ## Milestone
 
-Hito 03 — DiningTable (completado)
+Hito 04 — Órdenes (en progreso)
 
 ## Estado general
 
 - Los hitos 01, 02 y 03 están completos.
-- Próximo hito: 04 — Órdenes (pendiente de inicio).
+- Hito 04 — Órdenes validado por review-agent y listo para la fase final de cierre.
 
 ---
 
 ## Phase
 
-Completed
+Review
 
 ---
 
 ## Status
 
-ready for next hito
+ready for finalization

@@ -2,13 +2,13 @@
 
 ## Task ID
 
-ninguna (hitos 1-3 completos)
+hito-04-review
 
 ---
 
 ## Description
 
-No hay tareas activas; se completaron las implementaciones de los hitos 01, 02 y 03. El siguiente hito (04) aún no se inicia.
+Fase 5 — Review: el review-agent validó que los modelos, servicios, selectores y tests cumplen con `milestones/hito-04-order-engine/acceptance.md`, `specs/product/vision.md`, `specs/product/roles.md` y `specs/glossary.md`, sin introducir supuestos adicionales.
 
 ---
 

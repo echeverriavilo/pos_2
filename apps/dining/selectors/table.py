@@ -1,5 +1,5 @@
 from apps.dining.models import DiningTable
-from apps.orders.models import Order
+from apps.orders.selectors import OrderSelector
 
 
 class DiningTableSelector:
@@ -13,9 +13,4 @@ class DiningTableSelector:
 
     @staticmethod
     def get_active_order_for_table(table):
-        if table is None or table.tenant is None:
-            return None
-        return Order.objects.for_tenant(table.tenant).filter(
-            table=table,
-            estado__in=Order.ACTIVE_STATES,
-        ).first()
+        return OrderSelector.get_active_order_for_table(table)
