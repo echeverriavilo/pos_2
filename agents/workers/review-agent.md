@@ -47,6 +47,7 @@ Puede:
 
 - Todo debe trazarse a specs
 - Debe confirmar que docstrings/comentarios nuevos están en español y explican las reglas de negocio relevantes.
+- Debe verificar que las implementaciones están alineadas con `specs/product/vision.md` y `specs/product/roles.md`, y usar `specs/glossary.md` para validar términos clave.
 
 ---
 

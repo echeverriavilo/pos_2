@@ -24,6 +24,7 @@ Puede:
 
 - /specs/domain/*
 - /specs/product/flows.md
+- /specs/engineering/testing.md
 - código generado
 - acceptance criteria
 
@@ -42,6 +43,7 @@ Puede:
 ### 1. Spec-Based Testing
 
 - Cada test debe mapear a una regla o flujo
+- Las prácticas definidas en `specs/engineering/testing.md` deben respaldar la estructura, nomenclatura y escenarios que se validan.
 
 ---
 

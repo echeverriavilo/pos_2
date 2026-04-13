@@ -30,6 +30,11 @@ Su única responsabilidad es:
 - /execution/current-task.md
 - /milestones/<hito>/*
 - /specs/**/*
+- /specs/architecture/multitenancy.md
+- /specs/architecture/system-overview.md
+- /specs/product/vision.md
+- /specs/product/roles.md
+- /specs/glossary.md
 - /specs/operations/execution-tracking.md
 - /agents/policies/*
 

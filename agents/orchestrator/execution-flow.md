@@ -8,6 +8,11 @@
   - /milestones/<hito>/tasks.md
   - /milestones/<hito>/acceptance.md
   - /execution/system-state.md
+  - /specs/architecture/system-overview.md
+  - /specs/architecture/multitenancy.md
+  - /specs/product/vision.md
+  - /specs/product/roles.md
+  - /specs/glossary.md
 
 - Verificar y, si corresponde, escribir en:
   - /execution/current-task.md (tarea activa o limpieza)
@@ -38,6 +43,8 @@
   - flows
   - invariants
   - reglas de negocio
+  - product/vision.md
+  - product/roles.md
 
 IF inconsistencia:
     STOP
@@ -96,6 +103,7 @@ IF rechazo:
 - Actualizar /execution/current-task.md reportando completion y limpiar si se cierra la tarea.
 - Actualizar /execution/current-milestone.md si el hito cambia de fase o se cierra (marcar estado completado, fase siguiente o dejar en blanco). 
 - Registrar en /execution/system-state.md cualquier entidad/servicio nueva o cambio de infraestructura que se haya introducido en el hito.
+- Verificar cumplimiento de `specs/engineering/git.md` antes de generar el commit.
 
 - Generar commit
 

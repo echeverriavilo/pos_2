@@ -34,6 +34,8 @@ No puede:
 - /specs/architecture/backend.md
 - /specs/engineering/*
 - acceptance criteria del milestone
+- /specs/architecture/multitenancy.md
+- /specs/glossary.md
 
 ---
 
@@ -69,6 +71,7 @@ Debe respetar:
 - Operaciones críticas deben ser atómicas
 - Uso obligatorio de mecanismos definidos en engineering/atomicity.md
 - Todos los docstrings y comentarios nuevos deben escribirse en español siguiendo `specs/engineering/coding-standards.md`.
+- Cada solución debe alinearse con `specs/product/vision.md` y `specs/product/roles.md`, identificando qué rol/flujo satisface y cómo la implementación respalda la visión general.
 
 ---
 
