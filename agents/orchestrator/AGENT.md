@@ -30,6 +30,7 @@ Su única responsabilidad es:
 - /execution/current-task.md
 - /milestones/<hito>/*
 - /specs/**/*
+- /specs/operations/execution-tracking.md
 - /agents/policies/*
 
 ---
@@ -142,6 +143,8 @@ Actualizar:
 
 - /execution/current-task.md
 - /milestones/<hito>/status.md
+- /execution/current-milestone.md (estado/fase del hito)
+- /execution/system-state.md si hay cambios estructurales nuevos
 
 ---
 

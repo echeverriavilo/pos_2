@@ -9,6 +9,11 @@
   - /milestones/<hito>/acceptance.md
   - /execution/system-state.md
 
+- Verificar y, si corresponde, escribir en:
+  - /execution/current-task.md (tarea activa o limpieza)
+  - /execution/current-milestone.md (hito activo y fase)
+  - /execution/system-state.md (cambios de arquitectura recientes)
+
 ---
 
 ## Step 1: Analysis Phase
@@ -44,7 +49,7 @@ IF inconsistencia:
 
 FOR cada tarea en tasks.md:
 
-    SET current-task.md
+    ACTUALIZAR /execution/current-task.md antes de delegar (incluir ID y descripción con estado `pending`).
 
     --- Implementación ---
 
@@ -87,6 +92,10 @@ IF rechazo:
 
 - Actualizar:
   - status.md del hito
+
+- Actualizar /execution/current-task.md reportando completion y limpiar si se cierra la tarea.
+- Actualizar /execution/current-milestone.md si el hito cambia de fase o se cierra (marcar estado completado, fase siguiente o dejar en blanco). 
+- Registrar en /execution/system-state.md cualquier entidad/servicio nueva o cambio de infraestructura que se haya introducido en el hito.
 
 - Generar commit
 
