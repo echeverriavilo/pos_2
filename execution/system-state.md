@@ -27,6 +27,30 @@
 
 ---
 
+## Additional Entities
+
+- `Category`, `Product`, `Ingredient` y `StockMovement` con managers tenant-aware y `InventoryService`.
+- `DiningTable` con estado/tenant filtering, selectors y servicios de transición.
+- `Order` y `OrderItem` mínimos con estados activos y servicios de creación/add/remove.
+
+---
+
+## Implemented Services
+
+- `TenantService`: crea tenants, siembra roles base y mantiene transacciones atómicas.
+- `InventoryService`: registra ingresos/ajustes/ventas y actualiza `Product.stock_actual` sin permitir stock negativo.
+- `DiningTableService`: gestiona `create_table`, `open_table`, `set_table_paying` y `reopen_table` manteniendo invariantes.
+- `create_order_for_table`: servicio canónico en `orders.services` para crear órdenes de mesa.
+
+---
+
+## Infrastructure Notes
+
+- Apps `core`, `catalog`, `dining` y `orders` registradas en `INSTALLED_APPS` y con migraciones aplicadas.
+- PostgreSQL `pos2` con usuario `pos2_ow` sigue siendo la base activa (`manage.py migrate`, `python -m pytest`).
+
+---
+
 ## Notes
 
 - La base PostgreSQL `pos2` (usuario `pos2_ow`, contraseña `1234`) ya está utilizada en migraciones y pruebas (`./.venv/bin/python manage.py migrate` y `./.venv/bin/python -m pytest`).

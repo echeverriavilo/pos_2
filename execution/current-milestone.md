@@ -2,16 +2,21 @@
 
 ## Milestone
 
-Hito 01 — Core Multitenancy
+Hito 03 — DiningTable (completado)
+
+## Estado general
+
+- Los hitos 01, 02 y 03 están completos.
+- Próximo hito: 04 — Órdenes (pendiente de inicio).
 
 ---
 
 ## Phase
 
-Execution (la base multitenant está establecida)
+Completed
 
 ---
 
 ## Status
 
-en progreso
+ready for next hito

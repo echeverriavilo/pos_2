@@ -1,7 +1,7 @@
 # Status — Hito 3: DiningTable
 
 ## Estado general
-In progress (modelos y servicios listos, pruebas verdes y decisiones registradas).
+Completed (modelos y servicios listos, pruebas verdes y decisiones registradas).
 
 ---
 

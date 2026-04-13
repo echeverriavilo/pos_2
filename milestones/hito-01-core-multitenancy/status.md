@@ -1,6 +1,6 @@
 # Status — Hito 01
 
-Estado: en progreso (infraestructura del core establecida)
+Estado: completado (infraestructura del core establecida)
 
 ## Avances clave
 

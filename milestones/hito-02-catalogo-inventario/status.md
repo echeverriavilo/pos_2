@@ -1,6 +1,6 @@
 # Status — Hito 02
 
-Estado: in progress
+Estado: completado (catálogo e inventario operativos)
 
 ## Avance sesión
 - App `catalog` añadida con modelos tenant-aware `Category`, `Product`, `Ingredient` y `StockMovement`.

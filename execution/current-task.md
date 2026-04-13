@@ -2,13 +2,13 @@
 
 ## Task ID
 
-hito-01-documentacion
+ninguna (hitos 1-3 completos)
 
 ---
 
 ## Description
 
-Documentar el estado del Hito 01 — Core Multitenancy, incluyendo decisiones, errores, estado actual y pasos para reproducir la configuración inicial.
+No hay tareas activas; se completaron las implementaciones de los hitos 01, 02 y 03. El siguiente hito (04) aún no se inicia.
 
 ---
 

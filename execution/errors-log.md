@@ -32,3 +32,9 @@ El orchestrator debe:
   - Contexto: configuración inicial del proyecto cambiaba a PostgreSQL, pero la base `pos2` se creó y requiere credenciales de `pos2_ow`.
   - Causa: los settings estaban apuntando a credenciales equivocadas (`postgres`/`postgres`).
   - Acción tomada: actualicé `grastro/settings.py` para usar la base `pos2` y el usuario/contraseña correctos (`pos2_ow`/`1234`). Después de eso, `manage.py migrate` y `pytest` se ejecutan sin errores.
+
+- Fecha: 2026-04-13
+  - Error: ninguno (entorno estable tras los hitos 1-3).
+  - Contexto: el desarrollo completó los hitos de multitenancy, inventario y mesas; no se detectaron nuevos bloqueos o errores significativos.
+  - Causa: instancia estable y tests locales exitosos.
+  - Acción tomada: se mantiene la vigilancia, pero no fue necesario actuar.
