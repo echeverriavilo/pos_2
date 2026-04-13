@@ -35,3 +35,4 @@ Esta carpeta (`execution/`) documenta el estado operativo del SDD en tiempo real
 - Ningún hito puede considerarse cerrado si `current-task.md` sigue mostrando una tarea activa.
 - El orchestrator es responsable de sincronizar estos archivos antes y después de cada paso clave (Task Loop, finalización, cambio de hito).
 - Los workers solo deben leer `current-*`; las escrituras corresponden al orchestrator o al backend-agent bajo indicación explícita.
+- La fase de documentación debe incluir una verificación explícita de docstrings/comentarios en español (ver `specs/engineering/coding-standards.md`). Esta verificación se registra brevemente en `current-task.md` antes de marcar la tarea como `completed`.

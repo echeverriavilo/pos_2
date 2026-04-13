@@ -57,7 +57,7 @@ FOR cada tarea en tasks.md:
 
     --- Documentación ---
 
-    Validar que funciones tengan comentarios
+    Validar que todas las funciones/servicios nuevos tengan docstrings y comentarios en español según `specs/engineering/coding-standards.md`.
 
     --- Testing ---
 

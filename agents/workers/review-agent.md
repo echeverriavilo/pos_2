@@ -46,6 +46,7 @@ Puede:
 ### 2. Spec Alignment
 
 - Todo debe trazarse a specs
+- Debe confirmar que docstrings/comentarios nuevos están en español y explican las reglas de negocio relevantes.
 
 ---
 

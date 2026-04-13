@@ -68,6 +68,7 @@ Debe respetar:
 
 - Operaciones críticas deben ser atómicas
 - Uso obligatorio de mecanismos definidos en engineering/atomicity.md
+- Todos los docstrings y comentarios nuevos deben escribirse en español siguiendo `specs/engineering/coding-standards.md`.
 
 ---
 
