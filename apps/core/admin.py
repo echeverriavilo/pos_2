@@ -9,6 +9,7 @@ class CustomUserAdmin(BaseUserAdmin):
     list_filter = ('is_active', 'is_staff', 'is_platform_staff')
     search_fields = ('email', 'first_name', 'last_name')
     ordering = ('email',)
+    exclude = ('date_joined',)
     fieldsets = BaseUserAdmin.fieldsets + (
         ('Platform', {'fields': ('is_platform_staff',)}),
         ('PIN', {'fields': ('pin_enabled',)}),
