@@ -38,3 +38,9 @@ El orchestrator debe:
   - Contexto: el desarrollo completó los hitos de multitenancy, inventario y mesas; no se detectaron nuevos bloqueos o errores significativos.
   - Causa: instancia estable y tests locales exitosos.
   - Acción tomada: se mantiene la vigilancia, pero no fue necesario actuar.
+
+- Fecha: 2026-04-15
+  - Error: Se marcó hito 06 como completo sin verificar acceptance criteria - roles sin permisos.
+  - Contexto: Revisión post-implementación reveló que roles base se creaban pero no tenían permisos asignados.
+  - Causa: No se revisó acceptance criteria antes de declarar completo; no se completó la tarea "Implementar reglas por rol".
+  - Acción tomada: Se modificó TenantService._seed_roles() para asignar permisos automáticamente según ROLE_PERMISSIONS mapping, se creó migración 0004 para roles existentes. Tests actualizados y pasando (43).

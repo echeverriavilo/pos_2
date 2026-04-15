@@ -47,3 +47,9 @@
   - Decisión: ampliar `apps.orders` con el modelo `OrderItem` (con tenant forzado), selectores dedicados y un servicio central que exponga `create_order`, `add_item`, `remove_item`, `recalculate_total` y `transition_order_state`, manteniendo en español los docstrings que describen cada paso.
   - Justificación: el dominio exige que toda entidad pertenezca a un tenant y que los flujos de mesa/rápido transiten solo por estados permitidos; centralizar la lógica en servicios garantiza transacciones atómicas y facilita la integración futura con pagos y stock.
   - Impacto: se garantiza la consistencia de total bruto y estados, se documentan las reglas en el servicio y los tests, y se deja trazabilidad de la decisión en el log del execution tracking.
+
+- Fecha: 2026-04-15
+  - Contexto: Hito 06 requiere sistema de roles y permisos con validación en todos los servicios existentes.
+  - Decisión: crear modelos `Permission` y `RolePermission` (tabla pivot), crear servicios de autorización `validate_tenant_access` y `validate_role_permission`, integrar validaciones en todos los servicios de orders/payments/dining añadiendo parámetro `user` obligatorio.
+  - Justificación: specs definen que platform_staff debe tener bypass de tenant pero no de permisos; los permisos son explícitos (no herencia); la validación debe ocurrir en servicios, no en views.
+  - Impacto: todos los servicios ahora requieren `user` y validan tenant y permisos; 43 tests actualizados y pasando; milestone completo.

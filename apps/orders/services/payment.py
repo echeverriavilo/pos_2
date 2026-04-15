@@ -3,6 +3,8 @@ from typing import Iterable
 
 from django.db import transaction
 
+from apps.core.constants.actions import SystemActions
+from apps.core.services.auth import validate_tenant_access, validate_role_permission
 from apps.orders.models import Order, OrderItem, Transaction, TransactionItem
 from apps.orders.selectors import TransactionSelector
 from apps.orders.services.order import OrderError, transition_order_state
@@ -181,10 +183,11 @@ def update_order_payment_state(*, order: Order) -> Order:
         return locked_order
 
 
-def register_transaction(*, tenant, order: Order, payment_type: str, amount=None, order_items=None) -> Transaction:
+def register_transaction(*, user, tenant, order: Order, payment_type: str, amount=None, order_items=None) -> Transaction:
     """Registra una transacción de pago respetando invariantes del dominio.
 
     Parámetros:
+    - user: usuario que registra el pago.
     - tenant: tenant de la operación.
     - order: orden a pagar.
     - payment_type: tipo de pago TOTAL, ABONO o PRODUCTOS.
@@ -197,6 +200,8 @@ def register_transaction(*, tenant, order: Order, payment_type: str, amount=None
     Efectos secundarios:
     - Puede marcar ítems como pagados y cambiar el estado de la orden.
     """
+    validate_tenant_access(user, tenant)
+    validate_role_permission(user, SystemActions.REGISTER_PAYMENT)
 
     with transaction.atomic():
         locked_order = Order.objects.for_tenant(tenant).select_for_update().get(pk=order.pk)

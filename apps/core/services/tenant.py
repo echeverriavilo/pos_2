@@ -2,9 +2,30 @@ from decimal import Decimal
 
 from django.db import transaction
 
-from apps.core.models import Role, Tenant
+from apps.core.models import Permission, Role, RolePermission, Tenant
 
 BASE_ROLES = ['administrador', 'cajero', 'garzón']
+
+ROLE_PERMISSIONS = {
+    'administrador': [
+        'create_order',
+        'add_item',
+        'remove_item',
+        'register_payment',
+        'manage_inventory',
+        'manage_users',
+        'manage_tables',
+    ],
+    'cajero': [
+        'register_payment',
+    ],
+    'garzón': [
+        'create_order',
+        'add_item',
+        'remove_item',
+        'manage_tables',
+    ],
+}
 
 
 class TenantService:
@@ -26,7 +47,13 @@ class TenantService:
         roles = []
         for name in BASE_ROLES:
             roles.append(Role(tenant=tenant, name=name))
-        Role.objects.bulk_create(roles)
+        created_roles = Role.objects.bulk_create(roles)
+
+        for role in created_roles:
+            perms = ROLE_PERMISSIONS.get(role.name, [])
+            for perm_codename in perms:
+                perm, _ = Permission.objects.get_or_create(codename=perm_codename)
+                RolePermission.objects.get_or_create(role=role, permission=perm)
 
     @staticmethod
     def get_base_roles():

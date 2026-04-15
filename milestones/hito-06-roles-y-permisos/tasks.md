@@ -1,30 +1,30 @@
 # Tasks — Hito 6: Roles y Permisos
 
-- [ ] Validar modelo User
-- [ ] Validar modelo Role
+- [x] Validar modelo User
+- [x] Validar modelo Role
 
-- [ ] Definir acciones del sistema
+- [x] Definir acciones del sistema
 
-- [ ] Implementar:
+- [x] Implementar:
   - validate_tenant_access
   - validate_role_permission
 
-- [ ] Integrar validaciones en:
+- [x] Integrar validaciones en:
   - servicios de mesas
   - servicios de órdenes
   - servicios de pagos
 
-- [ ] Implementar reglas por rol:
+- [x] Implementar reglas por rol:
   - admin
   - cajero
   - garzón
 
-- [ ] Implementar lógica para platform_staff
+- [x] Implementar lógica para platform_staff
 
-- [ ] Tests:
+- [x] Tests:
   - permisos correctos
   - denegación
   - multitenancy
   - platform_staff
 
-- [ ] Validación final
+- [x] Validación final

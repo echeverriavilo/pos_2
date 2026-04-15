@@ -6,6 +6,8 @@ from django.db.models import DecimalField, F, Sum
 
 from apps.catalog.models import Product
 from apps.catalog.services.inventory import InventoryService
+from apps.core.constants.actions import SystemActions
+from apps.core.services.auth import validate_tenant_access, validate_role_permission
 from apps.dining.models import DiningTable
 from apps.orders.models import Order, OrderItem
 
@@ -75,8 +77,10 @@ def _ensure_overdraft_payment(order, total_pagado):
         raise OrderStateTransitionError('El pago total no alcanza el total bruto de la orden.')
 
 
-def create_order(*, tenant, tipo_flujo, table=None, propina_monto=Decimal('0')) -> Order:
+def create_order(*, user, tenant, tipo_flujo, table=None, propina_monto=Decimal('0')) -> Order:
     """Crea una orden válida según el flujo definido y asigna valores iniciales."""
+    validate_tenant_access(user, tenant)
+    validate_role_permission(user, SystemActions.CREATE_ORDER)
     _validate_flow_constraints(tipo_flujo, table)
     with transaction.atomic():
         return Order.objects.create(
@@ -89,15 +93,17 @@ def create_order(*, tenant, tipo_flujo, table=None, propina_monto=Decimal('0')) 
         )
 
 
-def create_order_for_table(*, table) -> Order:
+def create_order_for_table(*, user, table) -> Order:
     """Conveniencia para crear órdenes del flujo MESA desde DiningTableService."""
     if table is None or table.tenant is None:
         raise OrderError('La mesa debe existir y pertenecer a un tenant.')
-    return create_order(tenant=table.tenant, tipo_flujo=Order.Flow.MESA, table=table)
+    return create_order(user=user, tenant=table.tenant, tipo_flujo=Order.Flow.MESA, table=table)
 
 
-def add_item(*, order, product: Product, cantidad: int) -> OrderItem:
+def add_item(*, user, order, product: Product, cantidad: int) -> OrderItem:
     """Agrega un ítem a la orden, ajusta el total y define el estado inicial."""
+    validate_tenant_access(user, order.tenant)
+    validate_role_permission(user, SystemActions.ADD_ITEM)
     if order.estado in {Order.States.COMPLETADO, Order.States.ANULADO}:
         raise OrderItemError('No se puede modificar una orden cerrada.')
     if product.tenant != order.tenant:
@@ -119,8 +125,10 @@ def add_item(*, order, product: Product, cantidad: int) -> OrderItem:
         return item
 
 
-def remove_item(*, item: OrderItem) -> OrderItem:
+def remove_item(*, user, item: OrderItem) -> OrderItem:
     """Anula un ítem siempre que no haya sido pagado o ya anulado."""
+    validate_tenant_access(user, item.order.tenant)
+    validate_role_permission(user, SystemActions.REMOVE_ITEM)
     if item.estado == OrderItem.States.PAGADO:
         raise OrderItemError('No se pueden anular ítems pagados.')
     if item.estado == OrderItem.States.ANULADO:

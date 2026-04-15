@@ -1,1 +1,1 @@
-from . import tenant, user
+from . import permission, role, tenant, user
