@@ -5,6 +5,8 @@ from django.db import transaction
 from django.db.models import DecimalField, F, Sum
 
 from apps.catalog.models import Product
+from apps.catalog.services.inventory import InventoryService
+from apps.dining.models import DiningTable
 from apps.orders.models import Order, OrderItem
 
 
@@ -37,6 +39,25 @@ REQUIRES_PAYMENT = {
     (Order.Flow.MESA, Order.States.PAGADO_PARCIAL, Order.States.COMPLETADO),
     (Order.Flow.RAPIDO, Order.States.PAGADO_PARCIAL, Order.States.CONFIRMADO),
 }
+
+
+def _apply_rapid_inventory_discount(order: Order) -> None:
+    """Descuenta stock al confirmar una orden de flujo rápido.
+
+    Parámetros:
+    - order: orden rápida ya validada para confirmación.
+
+    Retorno:
+    - None.
+
+    Efectos secundarios:
+    - Crea movimientos de inventario por cada ítem activo inventariable.
+    """
+
+    for item in order.items.exclude(estado=OrderItem.States.ANULADO).select_related('product'):
+        if not item.product.es_inventariable:
+            continue
+        InventoryService.registrar_venta(product=item.product, cantidad=Decimal(item.cantidad))
 
 
 def _validate_flow_constraints(tipo_flujo, table):
@@ -138,9 +159,13 @@ def transition_order_state(*, order: Order, target_state: str, total_pagado: Opt
         order.estado = target_state
         order.save(update_fields=['estado'])
         if order.tipo_flujo == Order.Flow.RAPIDO and target_state == Order.States.CONFIRMADO:
+            _apply_rapid_inventory_discount(order)
             order.items.filter(estado=OrderItem.States.PENDIENTE).update(estado=OrderItem.States.PREPARACION)
         if target_state == Order.States.COMPLETADO:
             order.items.filter(
                 estado__in=(OrderItem.States.PENDIENTE, OrderItem.States.PREPARACION)
             ).update(estado=OrderItem.States.ENTREGADO)
+            if order.table_id:
+                order.table.estado = DiningTable.States.DISPONIBLE
+                order.table.save(update_fields=['estado'])
         return order

@@ -52,7 +52,21 @@ class OrderItem(models.Model):
         if self.product.tenant != self.order.tenant:
             raise ValueError('El producto debe pertenecer al mismo tenant que la orden.')
         if self.pk:
-            original = OrderItem.objects.filter(pk=self.pk).values('precio_unitario_snapshot').first()
+            original = OrderItem.objects.filter(pk=self.pk).values(
+                'cantidad',
+                'estado',
+                'order_id',
+                'precio_unitario_snapshot',
+                'product_id',
+            ).first()
+            if original and original['estado'] == self.States.PAGADO and (
+                original['cantidad'] != self.cantidad
+                or original['estado'] != self.estado
+                or original['order_id'] != self.order_id
+                or original['precio_unitario_snapshot'] != self.precio_unitario_snapshot
+                or original['product_id'] != self.product_id
+            ):
+                raise ValueError('Un ítem pagado no puede modificarse.')
             if original and original['precio_unitario_snapshot'] != self.precio_unitario_snapshot:
                 raise ValueError('El precio unitario es inmutable una vez creado el ítem.')
         super().save(*args, **kwargs)

@@ -33,6 +33,9 @@
 - `DiningTable` con estado/tenant filtering, selectors y servicios de transición.
 - `Order` y `OrderItem` mínimos con estados activos y servicios de creación/add/remove.
   - `OrderItem` ahora fuerza tenant desde `order`, mantiene `precio_unitario_snapshot` inmutable y registra estados del flujo para respetar las invariantes del hito 4.
+  - `OrderItem` entra a estado `PAGADO` tras pago por productos, volviéndose completamente inmutable (sin `update()` ni `delete()`).
+- **[Hito 05]** `Transaction`: registra transacciones de pago (TOTAL, ABONO, PRODUCTOS) con tenant directo para multitenancy, monto y relación a Order.
+- **[Hito 05]** `TransactionItem`: asociación explícita entre Transaction y OrderItem para trazabilidad de qué items fueron pagados en qué transacción, con tenant directo.
 
 ---
 
@@ -43,6 +46,10 @@
 - `DiningTableService`: gestiona `create_table`, `open_table`, `set_table_paying` y `reopen_table` manteniendo invariantes.
 - `create_order_for_table`: servicio canónico en `orders.services` para crear órdenes de mesa.
   - `orders.services`: ahora expone `create_order`, `add_item`, `remove_item`, `recalculate_total` y `transition_order_state`, junto a selectores de órdenes e ítems por tenant/mesa, con docstrings en español y validaciones por flujo (mesa vs. rápido).
+- **[Hito 05]** `register_transaction`: servicio principal que crea transacciones de pago con validaciones de flujo, estado de orden, y saldo pendiente.
+- **[Hito 05]** `apply_payment_to_items`: marca ítems como PAGADO y crea asociaciones TransactionItem para pago por productos.
+- **[Hito 05]** `update_order_payment_state`: calcula total pagado acumulado y dispara transiciones de estado (ABIERTO → PAGADO_PARCIAL/CONFIRMADO/COMPLETADO).
+- **[Hito 05]** `TransactionSelector`: selectors para listar pagos por orden, calcular totales pagado/pendiente.
 
 ---
 

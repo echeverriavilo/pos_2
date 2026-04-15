@@ -84,24 +84,17 @@ WSGI_APPLICATION = 'grastro.wsgi.application'
 
 DEFAULT_DB_ENGINE = os.environ.get('DB_ENGINE', 'django.db.backends.postgresql')
 
-if DEFAULT_DB_ENGINE == 'django.db.backends.sqlite3':
-    DATABASES = {
-        'default': {
-            'ENGINE': 'django.db.backends.sqlite3',
-            'NAME': BASE_DIR / 'db.sqlite3',
-        }
+
+DATABASES = {
+    'default': {
+        'ENGINE': 'django.db.backends.postgresql',
+        'NAME': 'pos2',
+        'USER': 'pos2_ow',
+        'PASSWORD': '1234',
+        'HOST': 'localhost',
+        'PORT': '5432',
     }
-else:
-    DATABASES = {
-        'default': {
-            'ENGINE': 'django.db.backends.postgresql',
-            'NAME': 'pos2',
-            'USER': 'pos2_ow',
-            'PASSWORD': '1234',
-            'HOST': 'localhost',
-            'PORT': '5432',
-        }
-    }
+}
 
 
 # Password validation

@@ -1,33 +1,39 @@
 # Status — Hito 5: Pagos
 
 ## Estado General
-PENDING
+COMPLETED
 
 ---
 
 ## Progreso
 
-- Modelos: NOT_STARTED
-- Servicios: NOT_STARTED
-- Integraciones: NOT_STARTED
-- Testing: NOT_STARTED
+- Modelos: COMPLETED
+- Servicios: COMPLETED
+- Integraciones: COMPLETED
+- Testing: COMPLETED (14/14 tests passing)
 
 ---
 
 ## Dependencias
 
-- Hito 4 (Órdenes)
-- Hito 3 (Mesas)
+- Hito 4 (Órdenes) ✓
+- Hito 3 (Mesas) ✓
 
 ---
 
 ## Riesgos
 
-- lógica de inventario en flujo rápido debe ser estrictamente controlada
-- transición CONFIRMADO depende de cálculo correcto de pagos
+- ✓ Lógica de inventario en flujo rápido controlada: descuento solo en CONFIRMADO
+- ✓ Transición CONFIRMADO validada con cálculo correcto de pagos
 
 ---
 
 ## Bloqueos
 
 - Ninguno
+
+---
+
+## Completion Date
+
+- 2026-04-15

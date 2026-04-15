@@ -2,13 +2,13 @@
 
 ## Task ID
 
-hito-04-review
+hito-05-task-01
 
 ---
 
 ## Description
 
-Fase 5 — Review: el review-agent validó que los modelos, servicios, selectores y tests cumplen con `milestones/hito-04-order-engine/acceptance.md`, `specs/product/vision.md`, `specs/product/roles.md` y `specs/glossary.md`, sin introducir supuestos adicionales.
+Fase 1-3 del Hito 05: crear `Transaction` y `TransactionItem`, definir enums, selectors de pagos y servicios iniciales (`register_transaction`, `apply_payment_to_items`, `update_order_payment_state`) respetando multitenancy, atomicidad e invariantes del dominio. Verificar docstrings y comentarios nuevos en español antes de marcar la tarea como completada.
 
 ---
 
