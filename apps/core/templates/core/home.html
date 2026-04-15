@@ -1,0 +1,101 @@
+{% extends 'grastro/base.html' %}
+
+{% block title %}Dashboard - Gastropos{% endblock %}
+
+{% block content %}
+<div class="row g-4">
+    <div class="col-12">
+        <h3>Dashboard</h3>
+    </div>
+
+    <!-- Catálogo -->
+    <div class="col-12">
+        <h5 class="text-muted mb-3">Catálogo</h5>
+    </div>
+    <div class="col-md-4 col-6">
+        <a href="{% url 'catalog:product-list' %}" class="text-decoration-none">
+            <div class="card h-100 dashboard-card">
+                <div class="card-body text-center">
+                    <i class="bi bi-box-seam display-4"></i>
+                    <h6 class="mt-3 mb-0">Productos</h6>
+                </div>
+            </div>
+        </a>
+    </div>
+    <div class="col-md-4 col-6">
+        <a href="{% url 'catalog:category-list' %}" class="text-decoration-none">
+            <div class="card h-100 dashboard-card">
+                <div class="card-body text-center">
+                    <i class="bi bi-tags display-4"></i>
+                    <h6 class="mt-3 mb-0">Categorías</h6>
+                </div>
+            </div>
+        </a>
+    </div>
+
+    <!-- Salón -->
+    <div class="col-12 mt-4">
+        <h5 class="text-muted mb-3">Salón</h5>
+    </div>
+    <div class="col-md-4 col-6">
+        <a href="{% url 'dining:table-map' %}" class="text-decoration-none">
+            <div class="card h-100 dashboard-card">
+                <div class="card-body text-center">
+                    <i class="bi bi-grid-3x3 display-4"></i>
+                    <h6 class="mt-3 mb-0">Mesas</h6>
+                </div>
+            </div>
+        </a>
+    </div>
+
+    <!-- Órdenes -->
+    <div class="col-12 mt-4">
+        <h5 class="text-muted mb-3">Órdenes</h5>
+    </div>
+    <div class="col-md-4 col-6">
+        <a href="{% url 'orders:active-order' %}" class="text-decoration-none">
+            <div class="card h-100 dashboard-card">
+                <div class="card-body text-center">
+                    <i class="bi bi-receipt display-4"></i>
+                    <h6 class="mt-3 mb-0">Órdenes Activas</h6>
+                </div>
+            </div>
+        </a>
+    </div>
+    <div class="col-md-4 col-6">
+        <a href="{% url 'orders:new-order' %}" class="text-decoration-none">
+            <div class="card h-100 dashboard-card">
+                <div class="card-body text-center">
+                    <i class="bi bi-cart-plus display-4"></i>
+                    <h6 class="mt-3 mb-0">Nuevo Pedido</h6>
+                </div>
+            </div>
+        </a>
+    </div>
+    <div class="col-md-4 col-6">
+        <a href="{% url 'orders:history' %}" class="text-decoration-none">
+            <div class="card h-100 dashboard-card">
+                <div class="card-body text-center">
+                    <i class="bi bi-clock-history display-4"></i>
+                    <h6 class="mt-3 mb-0">Historial</h6>
+                </div>
+            </div>
+        </a>
+    </div>
+
+    <!-- Configuración -->
+    <div class="col-12 mt-4">
+        <h5 class="text-muted mb-3">Administración</h5>
+    </div>
+    <div class="col-md-4 col-6">
+        <a href="{% url 'core:config' %}" class="text-decoration-none">
+            <div class="card h-100 dashboard-card">
+                <div class="card-body text-center">
+                    <i class="bi bi-gear display-4"></i>
+                    <h6 class="mt-3 mb-0">Configuración</h6>
+                </div>
+            </div>
+        </a>
+    </div>
+</div>
+{% endblock %}

@@ -44,3 +44,15 @@ El orchestrator debe:
   - Contexto: Revisión post-implementación reveló que roles base se creaban pero no tenían permisos asignados.
   - Causa: No se revisó acceptance criteria antes de declarar completo; no se completó la tarea "Implementar reglas por rol".
   - Acción tomada: Se modificó TenantService._seed_roles() para asignar permisos automáticamente según ROLE_PERMISSIONS mapping, se creó migración 0004 para roles existentes. Tests actualizados y pasando (43).
+
+- Fecha: 2026-04-15
+  - Error: Redirect a /accounts/login/ (404) al intentar acceder a módulos protegidos.
+  - Contexto: Usuario accedió a localhost:8000/catalogo/ sin estar autenticado y fue redirigido a /accounts/login/ que no existía.
+  - Causa: LOGIN_URL no estaba configurada en settings.py y no existían URLs de autenticación.
+  - Acción tomada: Se agregaron LOGIN_URL='/login/', LOGOUT_URL='/logout/', LOGIN_REDIRECT_URL='/' en settings.py; se crearon login_view y logout_view personalizadas en apps/core/views.py; se agregaron rutas en apps/core/urls.py; se creó template login.html independiente. Error resuelto, flujo completo funcionando.
+
+- Fecha: 2026-04-15
+  - Error: VariableDoesNotExist at / - Failed lookup for key [username] in CustomUser
+  - Contexto: Usuario autenticado accede al dashboard y el template base.html intenta usar {{ user.get_short_name|default:user.username }}.
+  - Causa: CustomUser no tiene campo username (usa email como USERNAME_FIELD); el template esperaba ambos campos.
+  - Acción tomada: Se agregó método get_short_name() a CustomUser que retorna first_name o email.split('@')[0]; se corrigió template para usar solo get_short_name. Error resuelto.

@@ -53,3 +53,27 @@
   - Decisión: crear modelos `Permission` y `RolePermission` (tabla pivot), crear servicios de autorización `validate_tenant_access` y `validate_role_permission`, integrar validaciones en todos los servicios de orders/payments/dining añadiendo parámetro `user` obligatorio.
   - Justificación: specs definen que platform_staff debe tener bypass de tenant pero no de permisos; los permisos son explícitos (no herencia); la validación debe ocurrir en servicios, no en views.
   - Impacto: todos los servicios ahora requieren `user` y validan tenant y permisos; 43 tests actualizados y pasando; milestone completo.
+
+- Fecha: 2026-04-15
+  - Contexto: Hito 07 requiere layout base PWA, sidebar responsivo, toasts system y navegación funcional entre módulos. Además se necesita sistema de autenticación personalizado.
+  - Decisión: descargar Bootstrap 5 + Bootstrap Icons localmente en static/vendor/, crear base.html con sidebar responsivo y toasts, configurar STATICFILES_DIRS y TEMPLATES DIRS en settings.py, crear templates mínimos para cada módulo (catalog, dining, orders, core), implementar login_view/logout_view personalizados con formulario Bootstrap, crear dashboard con grid de cards.
+  - Justificación: specs definen HTML server-rendered con HTMX básico, Bootstrap instalación local (no CDN), mobile-first, diseño responsive con breakpoints; login redirect a /login/ porque no existían URLs de autenticación.
+  - Impacto: Layout base funcional con sidebar responsivo, toasts para feedback, templates por módulo, login/logout personalizados con redirect a dashboard.
+
+- Fecha: 2026-04-15
+  - Contexto: El usuario accedió a localhost:8000/ y fue redirigido a /accounts/login/ (404) porque no existían URLs de autenticación configuradas.
+  - Decisión: Agregar LOGIN_URL='/login/', LOGOUT_URL='/logout/', LOGIN_REDIRECT_URL='/' en settings.py; crear vistas login_view y logout_view en apps/core/views.py con autenticación Django; agregar rutas en apps/core/urls.py; crear template login.html independiente (sin base.html) para evitar loop de autenticación.
+  - Justificación: El @login_required decorador redirige a LOGIN_URL configurada; el template de login debe ser independiente porque el usuario no está autenticado aún.
+  - Impacto: Login funcional con formulario Bootstrap, logout cierra sesión y redirecciona a /login/, flujo completo: login → dashboard → módulos → logout.
+
+- Fecha: 2026-04-15
+  - Contexto:Sidebar no se despliega en móvil (solo iconos, no texto) y falta header superior con usuario/notificaciones/logout.
+  - Decisión: Reescribir base.html con sidebar sin clase inicial collapsed-md (siempre expandido en desktop), usar clase .mobile-open solo para móvil, crear top-header con dropdown de usuario (configuración, logout), actualizar grastro.css con reglas responsive.
+  - Justificación:El sidebar debe mostrarse siempre expandido en desktop; en móvil usar toggle class .mobile-open; el dropdown de usuario requiere autenticación active para mostrarse.
+  - Impacto:Sidebar funciona en móvil y desktop, header superior con usuario, dropdown paraconfiguración y logout visible cuando autenticado.
+
+- Fecha: 2026-04-15
+  - Contexto: Error "VariableDoesNotExist: Failed lookup for key [username]" al renderizar base.html porque CustomUser no tiene campo username (usa email como USERNAME_FIELD).
+  - Decisión: Agregar método get_short_name() a CustomUser que retorna first_name si existe, o email.split('@')[0] como fallback.
+  - Justificación: CustomUser extiende de AbstractBaseUser pero no tiene campo username (el campo es email); el template espera get_short_name().
+  - Impacto: Template ahora puede usar {{ user.get_short_name }} sin errores; dropdown muestra nombre de usuario o primer parte del email.

@@ -2,17 +2,20 @@
 
 ## Milestone
 
-Hito 06 — Roles y Permisos
+Hito 07 — Layout Base y Shell de Aplicación
 
 ## Estado general
 
-- Hitos 01-05 completados.
-- Hito 06: COMPLETO
-  - Sistema de roles y permisos con validación en todos los servicios
+- Hitos 01-06 completados
+- Hito 07: COMPLETO
+  - Layout base con Bootstrap 5 y Bootstrap Icons local
+  - Sidebar de navegación responsivo (móvil: toggle, desktop: expandido)
+  - Toasts system para feedback
+  - Navegación funcional entre módulos
+  - Login/logout personalizados
+  - Dashboard con cards
+  - Header superior con usuario y dropdown
   - 60 tests pasando
-  - Roles base con permisos asignados automáticamente
-  - **CRUD completo de roles por tenant**
-  - **Toggle activo/inactivo de permisos granulares**
 
 ---
 

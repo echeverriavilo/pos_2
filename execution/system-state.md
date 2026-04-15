@@ -83,4 +83,9 @@ Todos los servicios reciben ahora parámetro `user` y validan:
 ## Notes
 
 - La base PostgreSQL `pos2` (usuario `pos2_ow`, contraseña `1234`) ya está utilizada en migraciones y pruebas.
-- Hito 06: 43 tests pasando.
+- Hito 06: 60 tests pasando.
+- **[Hito 07]** Layout Base: Bootstrap 5 + Bootstrap Icons local, sidebar responsivo, toasts system, templates con Django Templates + HTMX.
+- **[Hito 07]** Login personalizado: `/login/` con formulario Bootstrap, autenticación con `authenticate()` de Django, logout en `/logout/`.
+- **[Hito 07]** Dashboard: Página home con grid de cards enlazando a todos los módulos.
+- **[Hito 07]** Header superior: usuario autenticado, dropdown con configuración y logout, toggle de sidebar en móvil.
+- **[Hito 07]** Método get_short_name() en CustomUser: retorna first_name o email.split('@')[0].

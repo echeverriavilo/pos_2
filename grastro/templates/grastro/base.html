@@ -1,0 +1,163 @@
+<!DOCTYPE html>
+{% load static %}
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="description" content="Sistema Punto de Venta - Gastropos">
+    <meta name="theme-color" content="#0d6efd">
+    <title>{% block title %}Gastropos{% endblock %}</title>
+
+    <link rel="stylesheet" href="{% static 'vendor/bootstrap/5.3/bootstrap.min.css' %}">
+    <link rel="stylesheet" href="{% static 'vendor/bootstrap-icons/bootstrap-icons.css' %}">
+    {% if request.FILES.grastro_css %}{% else %}<link rel="stylesheet" href="{% static 'css/grastro.css' %}">{% endif %}
+
+    {% block extra_css %}{% endblock %}
+</head>
+<body>
+    <div class="d-flex">
+        <!-- Sidebar -->
+        <nav id="sidebar" class="sidebar">
+            <div class="sidebar-header">
+                <h5 class="mb-0 d-none d-md-block">Gastropos</h5>
+                <button id="sidebar-toggle" class="btn btn-sm d-md-none" aria-label="Toggle navigation">
+                    <i class="bi bi-list"></i>
+                </button>
+            </div>
+            <ul class="nav flex-column">
+                <li class="nav-item">
+                    <a class="nav-link" href="{% url 'catalog:product-list' %}">
+                        <i class="bi bi-box-seam"></i>
+                        <span>Productos</span>
+                    </a>
+                </li>
+                <li class="nav-item">
+                    <a class="nav-link" href="{% url 'catalog:category-list' %}">
+                        <i class="bi bi-tags"></i>
+                        <span>Categorías</span>
+                    </a>
+                </li>
+                <li class="nav-item">
+                    <a class="nav-link" href="{% url 'dining:table-map' %}">
+                        <i class="bi bi-square-fill"></i>
+                        <span>Mesas</span>
+                    </a>
+                </li>
+                <li class="nav-item">
+                    <a class="nav-link" href="{% url 'orders:active-order' %}">
+                        <i class="bi bi-receipt"></i>
+                        <span>Órdenes</span>
+                    </a>
+                </li>
+                <li class="nav-item">
+                    <a class="nav-link" href="{% url 'orders:new-order' %}">
+                        <i class="bi bi-cart-plus"></i>
+                        <span>Nuevo Pedido</span>
+                    </a>
+                </li>
+                <li class="nav-item">
+                    <a class="nav-link" href="{% url 'orders:history' %}">
+                        <i class="bi bi-clock-history"></i>
+                        <span>Historial</span>
+                    </a>
+                </li>
+                <li class="nav-item">
+                    <a class="nav-link" href="{% url 'core:config' %}">
+                        <i class="bi bi-gear"></i>
+                        <span>Configuración</span>
+                    </a>
+                </li>
+            </ul>
+        </nav>
+
+        <!-- Main Content -->
+        <main class="flex-grow-1 main-content">
+            <!-- Header Superior -->
+            <header class="top-header">
+                <button id="menu-toggle" class="btn btn-outline-secondary d-md-none">
+                    <i class="bi bi-list"></i>
+                </button>
+                <div class="header-title">
+                    {% block header_title %}Gastropos{% endblock %}
+                </div>
+                <div class="header-actions">
+                    {% block header_actions %}
+                    {% if user.is_authenticated %}
+                    <div class="dropdown">
+                        <button class="btn btn-link dropdown-toggle" data-bs-toggle="dropdown" aria-expanded="false">
+                            <i class="bi bi-person-circle"></i>
+                            <span class="d-none d-sm-inline">{{ user.get_short_name }}</span>
+                        </button>
+                        <ul class="dropdown-menu dropdown-menu-end">
+                            <li><span class="dropdown-item-text text-muted">{{ user.email }}</span></li>
+                            <li><hr class="dropdown-divider"></li>
+                            <li><a class="dropdown-item" href="{% url 'core:config' %}"><i class="bi bi-gear me-2"></i>Configuración</a></li>
+                            <li><a class="dropdown-item" href="{% url 'core:logout' %}"><i class="bi bi-box-arrow-right me-2"></i>Cerrar Sesión</a></li>
+                        </ul>
+                    </div>
+                    {% endif %}
+                    {% endblock %}
+                </div>
+            </header>
+
+            <div class="container-fluid p-4">
+                {% block content %}{% endblock %}
+            </div>
+        </main>
+    </div>
+
+    <!-- Toasts Container -->
+    <div id="toasts-container" class="toast-container position-fixed bottom-0 end-0 p-3">
+        {% if messages %}
+            {% for message in messages %}
+                <div class="toast show" role="alert" aria-live="assertive" aria-atomic="true">
+                    <div class="toast-header">
+                        <i class="bi {% if message.tags == 'success' %}bi-check-circle-fill{% elif message.tags == 'error' %}bi-exclamation-circle-fill{% elif message.tags == 'warning' %}bi-exclamation-triangle-fill{% else %}bi-info-circle-fill{% endif %} me-2"></i>
+                        <strong class="me-auto">{{ message.tag|default:" Información" }}</strong>
+                        <button type="button" class="btn-close" data-bs-dismiss="toast" aria-label="Close"></button>
+                    </div>
+                    <div class="toast-body">
+                        {{ message }}
+                    </div>
+                </div>
+            {% endfor %}
+        {% endif %}
+    </div>
+
+    <script src="{% static 'vendor/bootstrap/5.3/bootstrap.bundle.min.js' %}"></script>
+    <script>
+        document.addEventListener('DOMContentLoaded', function() {
+            var sidebar = document.getElementById('sidebar');
+            var menuToggle = document.getElementById('menu-toggle');
+            var sidebarToggle = document.getElementById('sidebar-toggle');
+
+            if (menuToggle) {
+                menuToggle.addEventListener('click', function() {
+                    sidebar.classList.toggle('mobile-open');
+                });
+            }
+
+            if (sidebarToggle) {
+                sidebarToggle.addEventListener('click', function() {
+                    sidebar.classList.toggle('mobile-open');
+                });
+            }
+
+            // Cerrar sidebar al hacer click fuera en móvil
+            document.addEventListener('click', function(e) {
+                if (window.innerWidth < 768 && sidebar.classList.contains('mobile-open')) {
+                    if (!sidebar.contains(e.target) && !menuToggle.contains(e.target)) {
+                        sidebar.classList.remove('mobile-open');
+                    }
+                }
+            });
+
+            var toasts = document.querySelectorAll('.toast');
+            toasts.forEach(function(toast) {
+                new bootstrap.Toast(toast).show();
+            });
+        });
+    </script>
+    {% block extra_js %}{% endblock %}
+</body>
+</html>

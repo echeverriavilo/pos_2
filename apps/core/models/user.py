@@ -83,3 +83,8 @@ class CustomUser(AbstractBaseUser, PermissionsMixin):
     def disable_pin(self):
         self.pin_hash = ''
         self.pin_enabled = False
+
+    def get_short_name(self) -> str:
+        if self.first_name:
+            return self.first_name
+        return self.email.split('@')[0]
