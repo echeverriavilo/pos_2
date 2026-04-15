@@ -43,6 +43,10 @@ class OrderItem(models.Model):
     def __str__(self):
         return f"Item {self.pk} ({self.estado})"
 
+    @property
+    def get_total(self):
+        return self.cantidad * self.precio_unitario_snapshot
+
     def save(self, *args, **kwargs):
         if self.order_id and self.order is None:
             self.order = Order.objects.filter(pk=self.order_id).first()

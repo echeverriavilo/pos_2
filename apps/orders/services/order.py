@@ -100,8 +100,8 @@ def create_order_for_table(*, user, table) -> Order:
     return create_order(user=user, tenant=table.tenant, tipo_flujo=Order.Flow.MESA, table=table)
 
 
-def add_item(*, user, order, product: Product, cantidad: int) -> OrderItem:
-    """Agrega un ítem a la orden, ajusta el total y define el estado inicial."""
+def add_or_update_item_in_order(*, user, order, product: Product, cantidad: int) -> OrderItem:
+    """Agrega o actualiza la cantidad de un ítem en la orden."""
     validate_tenant_access(user, order.tenant)
     validate_role_permission(user, SystemActions.ADD_ITEM)
     if order.estado in {Order.States.COMPLETADO, Order.States.ANULADO}:
@@ -110,22 +110,24 @@ def add_item(*, user, order, product: Product, cantidad: int) -> OrderItem:
         raise OrderItemError('Producto y orden deben pertenecer al mismo tenant.')
     if cantidad <= 0:
         raise OrderItemError('La cantidad debe ser mayor que cero.')
-    estado_inicial = (
-        OrderItem.States.PREPARACION if order.tipo_flujo == Order.Flow.MESA else OrderItem.States.PENDIENTE
-    )
+
     with transaction.atomic():
-        item = OrderItem.objects.create(
+        item, created = OrderItem.objects.get_or_create(
             order=order,
             product=product,
-            cantidad=cantidad,
-            precio_unitario_snapshot=product.precio_bruto,
-            estado=estado_inicial,
+            defaults={
+                'cantidad': 0,
+                'precio_unitario_snapshot': product.precio_bruto,
+                'estado': (OrderItem.States.PREPARACION if order.tipo_flujo == Order.Flow.MESA else OrderItem.States.PENDIENTE),
+            }
         )
+        item.cantidad += cantidad
+        item.save(update_fields=['cantidad'])
         recalculate_total(order)
         return item
 
 
-def remove_item(*, user, item: OrderItem) -> OrderItem:
+def remove_item_from_order(*, user, item: OrderItem) -> OrderItem:
     """Anula un ítem siempre que no haya sido pagado o ya anulado."""
     validate_tenant_access(user, item.order.tenant)
     validate_role_permission(user, SystemActions.REMOVE_ITEM)

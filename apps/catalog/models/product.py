@@ -20,9 +20,12 @@ class Product(models.Model):
         related_name='products',
     )
     nombre = models.CharField(max_length=255)
+    description = models.TextField(blank=True, null=True)
     precio_bruto = models.DecimalField(max_digits=12, decimal_places=2)
     es_inventariable = models.BooleanField(default=True)
     stock_actual = models.DecimalField(max_digits=12, decimal_places=2, default=Decimal('0'))
+    image_url = models.URLField(blank=True, null=True)
+    is_active = models.BooleanField(default=True)
 
     objects = TenantAwareManager()
 

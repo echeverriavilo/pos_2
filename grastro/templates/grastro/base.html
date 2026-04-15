@@ -10,6 +10,28 @@
 
     <link rel="stylesheet" href="{% static 'vendor/bootstrap/5.3/bootstrap.min.css' %}">
     <link rel="stylesheet" href="{% static 'vendor/bootstrap-icons/bootstrap-icons.css' %}">
+    <script src="https://unpkg.com/htmx.org@2.0.4"></script>
+    <script>
+        document.addEventListener('htmx:configRequest', function(evt) {
+            var csrfForm = document.querySelector('#csrf-form') || document.querySelector('[name=csrfmiddlewaretoken]');
+            var csrfToken = csrfForm ? csrfForm.querySelector('[name=csrfmiddlewaretoken]')?.value : null;
+            if (!csrfToken) {
+                csrfToken = document.querySelector('meta[name="csrf-token"]')?.content;
+            }
+            if (csrfToken) {
+                evt.detail.headers['X-CSRFToken'] = csrfToken;
+            }
+        });
+        document.addEventListener('htmx:swapOOBError', function(evt) {
+            console.error('HTMX OOB Swap Error:', evt.detail.error);
+        });
+        document.addEventListener('htmx:afterSwap', function(evt) {
+            console.log('HTMX afterSwap:', evt.detail);
+        });
+        document.addEventListener('htmx:responseError', function(evt) {
+            console.error('HTMX Response Error:', evt.detail.xhr.status, evt.detail.xhr.responseText);
+        });
+    </script>
     {% if request.FILES.grastro_css %}{% else %}<link rel="stylesheet" href="{% static 'css/grastro.css' %}">{% endif %}
 
     {% block extra_css %}{% endblock %}
@@ -53,6 +75,12 @@
                     <a class="nav-link" href="{% url 'orders:new-order' %}">
                         <i class="bi bi-cart-plus"></i>
                         <span>Nuevo Pedido</span>
+                    </a>
+                </li>
+                <li class="nav-item">
+                    <a class="nav-link" href="{% url 'orders:terminal-ventas' %}">
+                        <i class="bi bi-cash-stack"></i>
+                        <span>Terminal de Ventas</span>
                     </a>
                 </li>
                 <li class="nav-item">

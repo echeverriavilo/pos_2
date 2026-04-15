@@ -11,6 +11,7 @@ class Category(models.Model):
         related_name='categories',
     )
     nombre = models.CharField(max_length=255)
+    is_active = models.BooleanField(default=True)
 
     objects = TenantAwareManager()
 

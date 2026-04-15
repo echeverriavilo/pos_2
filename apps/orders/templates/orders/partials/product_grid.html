@@ -1,0 +1,30 @@
+<div id="product-grid" class="row row-cols-1 row-cols-md-2 g-4">
+    {% for product in products %}
+        <div class="col">
+            <div class="card h-100">
+                {% if product.image_url %}
+                    <img src="{{ product.image_url }}" class="card-img-top" alt="{{ product.nombre }}">
+                {% endif %}
+                <div class="card-body">
+                    <h5 class="card-title">{{ product.nombre }}</h5>
+                    {% if product.description %}
+                        <p class="card-text">{{ product.description }}</p>
+                    {% endif %}
+                    <p class="card-text"><strong>${{ product.precio_bruto|floatformat:0 }}</strong></p>
+                </div>
+                <div class="card-footer">
+                    <button class="btn btn-primary btn-sm"
+                            hx-post="{% url 'orders:add-to-cart' product.id %}"
+                            hx-target="#shopping-cart"
+                            hx-swap="innerHTML">
+                        Agregar
+                    </button>
+                </div>
+            </div>
+        </div>
+    {% empty %}
+        <div class="col">
+            <p>No se encontraron productos.</p>
+        </div>
+    {% endfor %}
+</div>

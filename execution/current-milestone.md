@@ -2,26 +2,25 @@
 
 ## Milestone
 
-Hito 07 — Layout Base y Shell de Aplicación
+Hito 08 — Terminal de Ventas (Flujo Rápido)
 
 ## Estado general
 
-- Hitos 01-06 completados
-- Hito 07: COMPLETO
-  - Layout base con Bootstrap 5 y Bootstrap Icons local
-  - Sidebar de navegación responsivo (móvil: toggle, desktop: expandido)
-  - Toasts system para feedback
-  - Navegación funcional entre módulos
-  - Login/logout personalizados
-  - Dashboard con cards
-  - Header superior con usuario y dropdown
-  - 60 tests pasando
+- Hitos 01-07 completados
+- Hito 08: COMPLETADO
+  - Grid de productos con categorías funcionando con HTMX
+  - Buscador reactivo (HTMX con delay de 500ms)
+  - Carrito de compras reactivo (HTMX)
+  - Agregar/quitar productos del carrito funcionando
+  - Cálculo automático de totales
+  - Tests de integración UI (5 tests pasando)
+  - 65 tests totales pasando
 
 ---
 
 ## Phase
 
-Completed
+Execution Phase - Completed
 
 ---
 
@@ -29,6 +28,14 @@ Completed
 
 completed
 
-## Fecha completado
+---
+
+## Fecha inicio
+
+2026-04-15
+
+---
+
+## Fecha completion
 
 2026-04-15

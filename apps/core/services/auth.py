@@ -23,7 +23,18 @@ def validate_tenant_access(user, tenant: Tenant) -> bool:
     if user.is_platform_staff:
         return True
 
-    user_tenant = getattr(user, 'tenant', None)
+    # Aseguramos que la membresía esté cargada o sea accesible
+    membership = getattr(user, 'membership', None)
+
+    if not membership:
+        if user.is_superuser:
+            return True  # Superusers sin membresía pueden acceder a cualquier tenant.
+        else:
+            raise AuthorizationError('El usuario no tiene una membresía asignada y por lo tanto no tiene acceso a un tenant.')
+
+    user_tenant = membership.tenant
+    if tenant is None:
+        raise AuthorizationError('El tenant no es válido.')
     if user_tenant is None or user_tenant.id != tenant.id:
         raise AuthorizationError('Acceso denegado al tenant.')
 

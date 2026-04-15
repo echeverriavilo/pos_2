@@ -1,0 +1,40 @@
+{% extends 'grastro/base.html' %}
+
+{% block title %}Terminal de Ventas{% endblock %}
+
+{% block content %}
+<form id="csrf-form" style="display: none;">{% csrf_token %}</form>
+<div class="container-fluid mt-3">
+    <div class="row">
+        <!-- Category Sidebar -->
+        <div class="col-md-3">
+            <h3>Categorías</h3>
+            {% include 'orders/partials/category_list.html' %}
+        </div>
+
+        <!-- Product Grid and Search -->
+        <div class="col-md-6">
+            <div class="input-group mb-3">
+                <input type="search" class="form-control" placeholder="Buscar productos..." name="search"
+                       hx-get="{% url 'orders:product-list-partial' %}"
+                       hx-trigger="keyup changed delay:500ms"
+                       hx-target="#product-grid"
+                       hx-swap="outerHTML">
+            </div>
+            <div id="product-grid" class="row row-cols-1 row-cols-md-2 g-4"
+                 hx-get="{% url 'orders:product-list-partial' %}"
+                 hx-trigger="load"
+                 hx-swap="outerHTML">
+                <!-- Product cards will be loaded here via HTMX -->
+                <p>Cargando productos...</p>
+            </div>
+        </div>
+
+        <!-- Shopping Cart -->
+        <div class="col-md-3">
+            <h3>Carrito</h3>
+            {% include 'orders/partials/shopping_cart.html' %}
+        </div>
+    </div>
+</div>
+{% endblock %}

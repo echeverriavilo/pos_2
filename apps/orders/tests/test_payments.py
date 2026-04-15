@@ -3,11 +3,11 @@ from decimal import Decimal
 import pytest
 
 from apps.catalog.models import Category, Product, StockMovement
-from apps.core.models import CustomUser, Membership, Permission, Role, Tenant
+from apps.core.models import CustomUser, Membership, Permission, Role, RolePermission, Tenant
 from apps.dining.models import DiningTable
 from apps.orders.models import Order, OrderItem, Transaction, TransactionItem
 from apps.orders.selectors import TransactionSelector
-from apps.orders.services import TransactionError, add_item, create_order, register_transaction
+from apps.orders.services import TransactionError, add_or_update_item_in_order, create_order, register_transaction
 
 
 def _create_product(*, tenant, name, price, inventariable=False, stock='20.00'):
@@ -26,7 +26,7 @@ def _create_cajero_user(tenant):
     user = CustomUser.objects.create_user(email=f'cajero@{tenant.slug}.com', password='test123')
     role = Role.objects.create(tenant=tenant, name='cajero')
     perm, _ = Permission.objects.get_or_create(codename='register_payment')
-    role.permissions.add(perm)
+    RolePermission.objects.get_or_create(role=role, permission=perm)
     Membership.objects.create(user=user, tenant=tenant, role=role)
     return user
 
@@ -34,9 +34,9 @@ def _create_cajero_user(tenant):
 def _create_garzon_user(tenant):
     user = CustomUser.objects.create_user(email=f'garzon@{tenant.slug}.com', password='test123')
     role = Role.objects.create(tenant=tenant, name='garzon')
-    for perm_codename in ['create_order', 'add_item', 'manage_tables']:
+    for perm_codename in ['create_order', 'add_item', 'remove_item', 'manage_tables']:
         perm, _ = Permission.objects.get_or_create(codename=perm_codename)
-        role.permissions.add(perm)
+        RolePermission.objects.get_or_create(role=role, permission=perm)
     Membership.objects.create(user=user, tenant=tenant, role=role)
     return user
 
@@ -49,7 +49,7 @@ def test_register_total_payment_completes_table_order_and_releases_table():
     table = DiningTable.objects.create(tenant=tenant, numero='11', estado=DiningTable.States.PAGANDO)
     product = _create_product(tenant=tenant, name='Plato', price='3500.00')
     order = create_order(user=user_garzon, tenant=tenant, tipo_flujo=Order.Flow.MESA, table=table)
-    add_item(user=user_garzon, order=order, product=product, cantidad=2)
+    add_or_update_item_in_order(user=user_garzon, order=order, product=product, cantidad=2)
 
     transaction_record = register_transaction(
         user=user_cajero,
@@ -75,7 +75,7 @@ def test_register_partial_payment_sets_partial_state():
     table = DiningTable.objects.create(tenant=tenant, numero='12')
     product = _create_product(tenant=tenant, name='Jugo', price='2500.00')
     order = create_order(user=user_garzon, tenant=tenant, tipo_flujo=Order.Flow.MESA, table=table)
-    add_item(user=user_garzon, order=order, product=product, cantidad=2)
+    add_or_update_item_in_order(user=user_garzon, order=order, product=product, cantidad=2)
 
     register_transaction(
         user=user_cajero,
@@ -98,10 +98,11 @@ def test_product_payment_marks_only_selected_items_as_paid():
     user_garzon = _create_garzon_user(tenant)
     user_cajero = _create_cajero_user(tenant)
     table = DiningTable.objects.create(tenant=tenant, numero='13')
-    product = _create_product(tenant=tenant, name='Postre', price='1800.00')
+    product1 = _create_product(tenant=tenant, name='Postre', price='1800.00')
+    product2 = _create_product(tenant=tenant, name='Bebida', price='1200.00')
     order = create_order(user=user_garzon, tenant=tenant, tipo_flujo=Order.Flow.MESA, table=table)
-    first_item = add_item(user=user_garzon, order=order, product=product, cantidad=1)
-    second_item = add_item(user=user_garzon, order=order, product=product, cantidad=2)
+    first_item = add_or_update_item_in_order(user=user_garzon, order=order, product=product1, cantidad=1)
+    second_item = add_or_update_item_in_order(user=user_garzon, order=order, product=product2, cantidad=2)
 
     transaction_record = register_transaction(
         user=user_cajero,
@@ -130,7 +131,7 @@ def test_product_payment_is_blocked_after_abono():
     table = DiningTable.objects.create(tenant=tenant, numero='14')
     product = _create_product(tenant=tenant, name='Cafe', price='1500.00')
     order = create_order(user=user_garzon, tenant=tenant, tipo_flujo=Order.Flow.MESA, table=table)
-    item = add_item(user=user_garzon, order=order, product=product, cantidad=2)
+    item = add_or_update_item_in_order(user=user_garzon, order=order, product=product, cantidad=2)
     register_transaction(
         user=user_cajero,
         tenant=tenant,
@@ -162,7 +163,7 @@ def test_quick_flow_full_first_payment_confirms_and_discounts_inventory():
         stock='10.00',
     )
     order = create_order(user=user_garzon, tenant=tenant, tipo_flujo=Order.Flow.RAPIDO)
-    item = add_item(user=user_garzon, order=order, product=product, cantidad=2)
+    item = add_or_update_item_in_order(user=user_garzon, order=order, product=product, cantidad=2)
 
     transaction_record = register_transaction(
         user=user_cajero,
@@ -189,7 +190,7 @@ def test_payment_cannot_exceed_pending_total():
     table = DiningTable.objects.create(tenant=tenant, numero='15')
     product = _create_product(tenant=tenant, name='Sopa', price='2200.00')
     order = create_order(user=user_garzon, tenant=tenant, tipo_flujo=Order.Flow.MESA, table=table)
-    add_item(user=user_garzon, order=order, product=product, cantidad=1)
+    add_or_update_item_in_order(user=user_garzon, order=order, product=product, cantidad=1)
 
     with pytest.raises(TransactionError):
         register_transaction(
@@ -209,7 +210,7 @@ def test_paid_item_becomes_immutable():
     table = DiningTable.objects.create(tenant=tenant, numero='16')
     product = _create_product(tenant=tenant, name='Torta', price='1900.00')
     order = create_order(user=user_garzon, tenant=tenant, tipo_flujo=Order.Flow.MESA, table=table)
-    item = add_item(user=user_garzon, order=order, product=product, cantidad=1)
+    item = add_or_update_item_in_order(user=user_garzon, order=order, product=product, cantidad=1)
     register_transaction(
         user=user_cajero,
         tenant=tenant,
@@ -232,7 +233,7 @@ def test_multiple_partial_payments_accumulate():
     table = DiningTable.objects.create(tenant=tenant, numero='17')
     product = _create_product(tenant=tenant, name='Pizza', price='5000.00')
     order = create_order(user=user_garzon, tenant=tenant, tipo_flujo=Order.Flow.MESA, table=table)
-    add_item(user=user_garzon, order=order, product=product, cantidad=1)
+    add_or_update_item_in_order(user=user_garzon, order=order, product=product, cantidad=1)
 
     register_transaction(
         user=user_cajero,
@@ -276,7 +277,7 @@ def test_product_payment_blocked_in_quick_flow():
     user_cajero = _create_cajero_user(tenant)
     product = _create_product(tenant=tenant, name='Burrito', price='3200.00')
     order = create_order(user=user_garzon, tenant=tenant, tipo_flujo=Order.Flow.RAPIDO)
-    item = add_item(user=user_garzon, order=order, product=product, cantidad=1)
+    item = add_or_update_item_in_order(user=user_garzon, order=order, product=product, cantidad=1)
 
     with pytest.raises(TransactionError):
         register_transaction(
@@ -296,7 +297,7 @@ def test_total_payment_direct_from_open_completes_immediately():
     table = DiningTable.objects.create(tenant=tenant, numero='18')
     product = _create_product(tenant=tenant, name='Ensalada', price='2800.00')
     order = create_order(user=user_garzon, tenant=tenant, tipo_flujo=Order.Flow.MESA, table=table)
-    add_item(user=user_garzon, order=order, product=product, cantidad=1)
+    add_or_update_item_in_order(user=user_garzon, order=order, product=product, cantidad=1)
 
     assert order.estado == Order.States.ABIERTO
     register_transaction(
@@ -319,7 +320,7 @@ def test_quick_flow_partial_payment_stays_in_partial_state():
     user_cajero = _create_cajero_user(tenant)
     product = _create_product(tenant=tenant, name='Taco', price='2000.00')
     order = create_order(user=user_garzon, tenant=tenant, tipo_flujo=Order.Flow.RAPIDO)
-    add_item(user=user_garzon, order=order, product=product, cantidad=2)
+    add_or_update_item_in_order(user=user_garzon, order=order, product=product, cantidad=2)
 
     register_transaction(
         user=user_cajero,
@@ -351,8 +352,8 @@ def test_multitenancy_isolation_in_transactions():
     order_a = create_order(user=user_garzon_a, tenant=tenant_a, tipo_flujo=Order.Flow.MESA, table=table_a)
     order_b = create_order(user=user_garzon_b, tenant=tenant_b, tipo_flujo=Order.Flow.MESA, table=table_b)
 
-    add_item(user=user_garzon_a, order=order_a, product=product_a, cantidad=1)
-    add_item(user=user_garzon_b, order=order_b, product=product_b, cantidad=1)
+    add_or_update_item_in_order(user=user_garzon_a, order=order_a, product=product_a, cantidad=1)
+    add_or_update_item_in_order(user=user_garzon_b, order=order_b, product=product_b, cantidad=1)
 
     register_transaction(
         user=user_cajero_a,
@@ -378,7 +379,7 @@ def test_cannot_pay_completed_or_cancelled_order():
     table = DiningTable.objects.create(tenant=tenant, numero='21')
     product = _create_product(tenant=tenant, name='Arepa', price='1200.00')
     order = create_order(user=user_garzon, tenant=tenant, tipo_flujo=Order.Flow.MESA, table=table)
-    add_item(user=user_garzon, order=order, product=product, cantidad=1)
+    add_or_update_item_in_order(user=user_garzon, order=order, product=product, cantidad=1)
 
     register_transaction(
         user=user_cajero,
@@ -408,7 +409,7 @@ def test_total_paid_never_exceeds_total_bruto():
     table = DiningTable.objects.create(tenant=tenant, numero='22')
     product = _create_product(tenant=tenant, name='Caldo', price='1000.00')
     order = create_order(user=user_garzon, tenant=tenant, tipo_flujo=Order.Flow.MESA, table=table)
-    add_item(user=user_garzon, order=order, product=product, cantidad=1)
+    add_or_update_item_in_order(user=user_garzon, order=order, product=product, cantidad=1)
 
     assert TransactionSelector.total_paid(order) == Decimal('0.00')
     assert TransactionSelector.total_pending(order) == Decimal('1000.00')

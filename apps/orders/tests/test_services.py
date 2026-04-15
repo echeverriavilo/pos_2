@@ -3,18 +3,18 @@ from decimal import Decimal
 import pytest
 
 from apps.catalog.models import Category, Product
-from apps.core.models import CustomUser, Membership, Permission, Role, Tenant
+from apps.core.models import CustomUser, Membership, Permission, Role, RolePermission, Tenant
 from apps.dining.models import DiningTable
 from apps.orders.models import Order, OrderItem
 from apps.orders.services import (
     OrderError,
     OrderItemError,
     OrderStateTransitionError,
-    add_item,
+    add_or_update_item_in_order,
     create_order,
     create_order_for_table,
     recalculate_total,
-    remove_item,
+    remove_item_from_order,
     transition_order_state,
 )
 
@@ -24,8 +24,8 @@ def _create_garzon_user(tenant):
     role = Role.objects.create(tenant=tenant, name='garzon')
     for perm_codename in ['create_order', 'add_item', 'remove_item', 'manage_tables']:
         perm, _ = Permission.objects.get_or_create(codename=perm_codename)
-        role.permissions.add(perm)
-    Membership.objects.create(user=user, tenant=tenant, role=role)
+        RolePermission.objects.get_or_create(role=role, permission=perm)
+    membership = Membership.objects.create(user=user, tenant=tenant, role=role)
     return user
 
 
@@ -66,8 +66,8 @@ def test_add_item_sets_states_and_total():
         table=DiningTable.objects.create(tenant=tenant, numero='10')
     )
     rapido_order = create_order(user=user, tenant=tenant, tipo_flujo=Order.Flow.RAPIDO)
-    mesa_item = add_item(user=user, order=mesa_order, product=product, cantidad=2)
-    rapido_item = add_item(user=user, order=rapido_order, product=product, cantidad=1)
+    mesa_item = add_or_update_item_in_order(user=user, order=mesa_order, product=product, cantidad=2)
+    rapido_item = add_or_update_item_in_order(user=user, order=rapido_order, product=product, cantidad=1)
     assert mesa_item.estado == OrderItem.States.PREPARACION
     assert rapido_item.estado == OrderItem.States.PENDIENTE
     assert mesa_order.total_bruto == Decimal('3000.00')
@@ -93,7 +93,7 @@ def test_add_item_rejects_different_tenant():
         table=DiningTable.objects.create(tenant=tenant_a, numero='99')
     )
     with pytest.raises(OrderItemError):
-        add_item(user=user_a, order=order, product=product, cantidad=1)
+        add_or_update_item_in_order(user=user_a, order=order, product=product, cantidad=1)
 
 
 @pytest.mark.django_db
@@ -113,9 +113,9 @@ def test_remove_item_recalculates_total():
         user=user, tenant=tenant, tipo_flujo=Order.Flow.MESA,
         table=DiningTable.objects.create(tenant=tenant, numero='3')
     )
-    item = add_item(user=user, order=order, product=product, cantidad=3)
+    item = add_or_update_item_in_order(user=user, order=order, product=product, cantidad=3)
     assert order.total_bruto == Decimal('3600.00')
-    removed = remove_item(user=user, item=item)
+    removed = remove_item_from_order(user=user, item=item)
     assert removed.estado == OrderItem.States.ANULADO
     assert order.total_bruto == Decimal('0')
     assert recalculate_total(order) == Decimal('0')
@@ -138,7 +138,7 @@ def test_transition_flow_mesa_requires_payment_for_completion():
         user=user, tenant=tenant, tipo_flujo=Order.Flow.MESA,
         table=DiningTable.objects.create(tenant=tenant, numero='5')
     )
-    add_item(user=user, order=order, product=product, cantidad=2)
+    add_or_update_item_in_order(user=user, order=order, product=product, cantidad=2)
     transition_order_state(order=order, target_state=Order.States.PAGADO_PARCIAL)
     total_paid = Decimal('1600.00')
     transition_order_state(order=order, target_state=Order.States.COMPLETADO, total_pagado=total_paid)
@@ -159,7 +159,7 @@ def test_transition_flow_rapido_requires_total_payment():
         stock_actual=Decimal('5.00'),
     )
     order = create_order(user=user, tenant=tenant, tipo_flujo=Order.Flow.RAPIDO)
-    add_item(user=user, order=order, product=product, cantidad=1)
+    add_or_update_item_in_order(user=user, order=order, product=product, cantidad=1)
     transition_order_state(order=order, target_state=Order.States.PAGADO_PARCIAL)
     with pytest.raises(OrderStateTransitionError):
         transition_order_state(order=order, target_state=Order.States.CONFIRMADO, total_pagado=Decimal('0'))
