@@ -103,7 +103,24 @@ El stock se descuenta según el flujo:
 --- 
 
 ## Acceso de plataforma
-
 - Usuarios con is_platform_staff pueden operar sobre cualquier tenant
 - No están restringidos por tenant_id
 - Deben ser controlados explícitamente en servicios
+
+---
+
+## Dispositivos y Configuración de Salida
+
+### Generación de Comandos
+- En flujo MESA: Se generan comandas al agregar cada producto a la orden (cuando OrderItem entra a PREPARACION)
+- En flujo RÁPIDO: Se generan comandas al confirmar el pedido (cuando Order → CONFIRMADO y items entran a PREPARACION)
+
+### Asignación a Dispositivos
+- Cada OrderItem se asigna a dispositivos según:
+  1. Configuración específica del producto (si existe)
+  2. Configuración de la categoría del producto (si existe y no hay config de producto)
+  3. Si no hay configuración, se asigna a dispositivo predeterminado del tenant (se define en specs)
+
+### Manejo de Múltiples Dispositivos
+- Un mismo OrderItem puede generar múltiples comandas (una por dispositivo configurado)
+- Las comandas son independientes (estado, impresión, etc.)

@@ -10,6 +10,7 @@ from apps.core.constants.actions import SystemActions
 from apps.core.services.auth import validate_tenant_access, validate_role_permission
 from apps.dining.models import DiningTable
 from apps.orders.models import Order, OrderItem
+from apps.orders.services.comanda import ComandaService
 
 
 class OrderError(Exception):
@@ -44,18 +45,7 @@ REQUIRES_PAYMENT = {
 
 
 def _apply_rapid_inventory_discount(order: Order) -> None:
-    """Descuenta stock al confirmar una orden de flujo rápido.
-
-    Parámetros:
-    - order: orden rápida ya validada para confirmación.
-
-    Retorno:
-    - None.
-
-    Efectos secundarios:
-    - Crea movimientos de inventario por cada ítem activo inventariable.
-    """
-
+    """Descuenta stock al confirmar una orden de flujo rápido."""
     for item in order.items.exclude(estado=OrderItem.States.ANULADO).select_related('product'):
         if not item.product.es_inventariable:
             continue
@@ -123,7 +113,19 @@ def add_or_update_item_in_order(*, user, order, product: Product, cantidad: int)
         )
         item.cantidad += cantidad
         item.save(update_fields=['cantidad'])
+        
         recalculate_total(order)
+        
+        # Generar comandas si el item está en PREPARACION (flujo MESA)
+        if item.estado == OrderItem.States.PREPARACION:
+            import logging
+            logger = logging.getLogger(__name__)
+            try:
+                ComandaService.generar_comandas_para_order_item(user=user, order_item=item)
+            except Exception as e:
+                logger.error(f"Error generating comanda: {e}")
+                pass
+        
         return item
 
 
@@ -156,8 +158,11 @@ def recalculate_total(order: Order) -> Decimal:
     return total
 
 
-def transition_order_state(*, order: Order, target_state: str, total_pagado: Optional[Decimal] = None) -> Order:
+def transition_order_state(*, order: Order, target_state: str, total_pagado: Optional[Decimal] = None, user=None) -> Order:
     """Actualiza el estado de la orden validando las transiciones permitidas por flujo."""
+    if user is not None:
+        validate_tenant_access(user, order.tenant)
+        validate_role_permission(user, SystemActions.REGISTER_PAYMENT)
     if order.estado == target_state:
         raise OrderStateTransitionError('La orden ya se encuentra en el estado solicitado.')
     valid_targets = FLOW_TRANSITIONS.get(order.tipo_flujo, {}).get(order.estado, set())
@@ -170,7 +175,16 @@ def transition_order_state(*, order: Order, target_state: str, total_pagado: Opt
         order.save(update_fields=['estado'])
         if order.tipo_flujo == Order.Flow.RAPIDO and target_state == Order.States.CONFIRMADO:
             _apply_rapid_inventory_discount(order)
+            items_preparacion = list(order.items.filter(estado=OrderItem.States.PENDIENTE))
             order.items.filter(estado=OrderItem.States.PENDIENTE).update(estado=OrderItem.States.PREPARACION)
+            import logging
+            logger = logging.getLogger(__name__)
+            for item in items_preparacion:
+                try:
+                    logger.error(f"Generating comanda for item {item.id} in order {order.id}")
+                    ComandaService.generar_comandas_para_order_item(user=user, order_item=item)
+                except Exception as e:
+                    logger.error(f"Error generating comanda for rapid flow: {e}")
         if target_state == Order.States.COMPLETADO:
             order.items.filter(
                 estado__in=(OrderItem.States.PENDIENTE, OrderItem.States.PREPARACION)

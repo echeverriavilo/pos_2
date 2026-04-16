@@ -89,11 +89,20 @@ Cada flujo definido en `flows.md` debe estar cubierto.
 ---
 
 ### Propina
-
 - cálculo sugerido (10%)
 - aceptación
 - rechazo
 - monto personalizado
+
+---
+
+### Dispositivos
+- generación correcta de comandas por dispositivo según configuración
+- manejo de múltiples dispositivos para un mismo producto
+- asignación de producto a dispositivo específico
+- asignación de categoría a dispositivo
+- resolución de conflictos por prioridad
+- dispositivo predeterminado cuando no hay configuración específica
 
 ---
 

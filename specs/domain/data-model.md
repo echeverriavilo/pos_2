@@ -165,7 +165,6 @@
 ---
 
 ## TransactionItem
-
 - transaction: FK(Transaction)
 - order_item: FK(OrderItem)
 - tenant: FK
@@ -173,3 +172,47 @@
 ### Reglas
 
 - Trazabilidad de qué items fueron pagados en cada transacción
+
+---
+
+## Dispositivo
+- tenant: FK
+- nombre: string (ej: "Cocina Principal", "Barra", "Impresión Cocina")
+- tipo: enum (IMPRESORA, PANTALLA)
+- activo: boolean
+- creado_en: datetime
+
+### Reglas
+- Cada tenant puede tener múltiples dispositivos
+- Tipo determina método de salida (impresión vs visualización)
+- Nombre único por tenant
+
+---
+
+## ConfiguracionDispositivo
+- tenant: FK
+- dispositivo: FK(Dispositivo)
+- producto: FK(Producto, nullable)
+- categoria: FK(Categoria, nullable)
+- prioridad: integer (default 0)
+
+### Reglas
+- Debe especificar producto XOR categoria (no ambos, no ninguno)
+- Prioridad resuelve conflictos (mayor prioridad gana)
+- Aplica a todos los tenants por separado
+- Única por (tenant, dispositivo, producto) y (tenant, dispositivo, categoria)
+
+---
+
+## Comanda
+- tenant: FK
+- orden: FK(Order)
+- dispositivo: FK(Dispositivo)
+- estado: enum (PENDIENTE, LISTA, ENTREGADO, CANCELADO)
+- creado_en: datetime
+
+### Reglas
+- Representa un lote de preparación para un dispositivo específico
+- Se crea automáticamente según reglas de negocio
+- Un OrderItem puede aparecer en múltiples comandas (si config lo permite)
+- El estado de comanda no afecta el estado de OrderItem o Orden

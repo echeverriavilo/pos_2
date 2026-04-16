@@ -6,3 +6,4 @@ class SystemActions:
     MANAGE_INVENTORY = "manage_inventory"
     MANAGE_USERS = "manage_users"
     MANAGE_TABLES = "manage_tables"
+    MANAGE_DEVICES = "manage_devices"

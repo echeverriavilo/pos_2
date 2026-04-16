@@ -131,10 +131,11 @@ def apply_payment_to_items(*, transaction_record: Transaction, order_items: Iter
     return created_items
 
 
-def update_order_payment_state(*, order: Order) -> Order:
+def update_order_payment_state(*, user, order: Order) -> Order:
     """Actualiza el estado de una orden según el total pagado acumulado.
 
     Parámetros:
+    - user: usuario que ejecuta la operación
     - order: orden cuyo estado de pago debe reevaluarse.
 
     Retorno:
@@ -156,11 +157,12 @@ def update_order_payment_state(*, order: Order) -> Order:
         if locked_order.tipo_flujo == Order.Flow.MESA:
             if total_paid < locked_order.total_bruto:
                 if locked_order.estado == Order.States.ABIERTO:
-                    transition_order_state(order=locked_order, target_state=Order.States.PAGADO_PARCIAL)
+                    transition_order_state(user=user, order=locked_order, target_state=Order.States.PAGADO_PARCIAL)
                 return locked_order
 
             if locked_order.estado in {Order.States.ABIERTO, Order.States.PAGADO_PARCIAL}:
                 transition_order_state(
+                    user=user,
                     order=locked_order,
                     target_state=Order.States.COMPLETADO,
                     total_pagado=total_paid,
@@ -169,13 +171,14 @@ def update_order_payment_state(*, order: Order) -> Order:
 
         if total_paid < locked_order.total_bruto:
             if locked_order.estado == Order.States.ABIERTO:
-                transition_order_state(order=locked_order, target_state=Order.States.PAGADO_PARCIAL)
+                transition_order_state(user=user, order=locked_order, target_state=Order.States.PAGADO_PARCIAL)
             return locked_order
 
         if locked_order.estado == Order.States.ABIERTO:
-            transition_order_state(order=locked_order, target_state=Order.States.PAGADO_PARCIAL)
+            transition_order_state(user=user, order=locked_order, target_state=Order.States.PAGADO_PARCIAL)
         if locked_order.estado == Order.States.PAGADO_PARCIAL:
             transition_order_state(
+                user=user,
                 order=locked_order,
                 target_state=Order.States.CONFIRMADO,
                 total_pagado=total_paid,
@@ -251,5 +254,5 @@ def register_transaction(*, user, tenant, order: Order, payment_type: str, amoun
         if payment_type == Transaction.PaymentType.PRODUCTOS:
             apply_payment_to_items(transaction_record=transaction_record, order_items=locked_items)
 
-        update_order_payment_state(order=locked_order)
+        update_order_payment_state(user=user, order=locked_order)
         return transaction_record

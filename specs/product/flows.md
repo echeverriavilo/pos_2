@@ -26,7 +26,7 @@ El sistema soporta dos tipos de flujo configurables por tenant:
 - Cada pedido:
   - puede contener uno o más productos
   - genera una comanda
-- Los productos se envían a preparación inmediatamente
+- Los productos se envían a preparación inmediatamente al ser agregados [MESA] o al confirmar el pedido [RÁPIDO], generando las comandas correspondientes para cada dispositivo configurado.
 
 ---
 
@@ -43,10 +43,13 @@ Desde este estado:
 ---
 
 ### Pago
-
 - Puede ser:
   - total
   - parcial (ver sección pagos)
+
+### Generación de Comandos
+- Flujo MESA: Al agregar productos a la orden (cada adición genera comandas para dispositivos configurados)
+- Flujo RÁPIDO: Al transicionar a estado CONFIRMADO (genera comandas para todos items pendientes)
 
 ---
 
