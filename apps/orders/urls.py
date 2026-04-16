@@ -12,4 +12,6 @@ urlpatterns = [
     path('terminal-ventas/products/', views.product_list_partial, name='product-list-partial'),
     path('terminal-ventas/add-to-cart/<int:product_id>/', views.add_to_cart, name='add-to-cart'),
     path('terminal-ventas/remove-from-cart/<int:order_item_id>/', views.remove_from_cart, name='remove-from-cart'),
+    path('mesa/<int:table_id>/', views.mesa_pedido, name='mesa-pedido'),
+    path('mesa/<int:table_id>/confirmar/', views.mesa_confirmar_pedido, name='mesa-confirmar'),
 ]

@@ -2,19 +2,20 @@
 
 ## Milestone
 
-Hito 08 — Terminal de Ventas (Flujo Rápido)
+Hito 09 — Mapa de Salón y Gestión de Mesas
 
 ## Estado general
 
-- Hitos 01-07 completados
-- Hito 08: COMPLETADO
-  - Grid de productos con categorías funcionando con HTMX
-  - Buscador reactivo (HTMX con delay de 500ms)
-  - Carrito de compras reactivo (HTMX)
-  - Agregar/quitar productos del carrito funcionando
-  - Cálculo automático de totales
-  - Tests de integración UI (5 tests pasando)
-  - 65 tests totales pasando
+- Hitos 01-08 completados
+- Hito 09: COMPLETADO
+  - View de mapa de salón con grid de mesas
+  - Colores por estado (DISPONIBLE=verde, OCUPADA=rojo, PAGANDO=amarillo)
+  - Modal de apertura Bootstrap con HTMX
+  - Vista mesa_pedido.html (mobile-first para garzones)
+  - Side panel para nuevo pedido con carrito temporal
+  - Filtro por categorías funcional
+  - Confirmar pedido agrega productos y cambia PAGANDO→OCUPADA
+  - Tests: 35 pasando
 
 ---
 
@@ -32,10 +33,34 @@ completed
 
 ## Fecha inicio
 
-2026-04-15
+2026-04-16
 
 ---
 
 ## Fecha completion
 
-2026-04-15
+2026-04-16
+
+---
+
+## Phase
+
+Execution Phase - Completed
+
+---
+
+## Status
+
+completed
+
+---
+
+## Fecha inicio
+
+2026-04-16
+
+---
+
+## Fecha completion
+
+2026-04-16

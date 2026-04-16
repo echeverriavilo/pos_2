@@ -77,3 +77,37 @@
   - Decisión: Agregar método get_short_name() a CustomUser que retorna first_name si existe, o email.split('@')[0] como fallback.
   - Justificación: CustomUser extiende de AbstractBaseUser pero no tiene campo username (el campo es email); el template espera get_short_name().
   - Impacto: Template ahora puede usar {{ user.get_short_name }} sin errores; dropdown muestra nombre de usuario o primer parte del email.
+
+---
+
+## Hito 09 - Mapa de Salón y Gestión de Mesas
+
+- Fecha: 2026-04-16
+  - Contexto: Necesitábamos un modal vertical para garzones en celulares (flujo de agregar nuevo pedido a mesa ocupada).
+  - Decisión: Implementar como side panel que desliza desde la derecha (90% ancho en móvil) en lugar de modal centrado tradicional.
+  - Justificación: Mejor experiencia táctil, acceso más rápido a elementos, optimizado para pantalla pequeña.
+  - Impacto: Side panel con transitions CSS, scroll interno, diseño mobile-first.
+
+- Fecha: 2026-04-16
+  - Contexto: Necesitábamos acumular productos antes de confirmar el pedido completo.
+  - Decisión: Carrito temporal en estado de JavaScript (no persistente) que se vacía al cancelar.
+  - Justificación: Experiencia instantánea sin requests adicionales, comportamiento natural de cancelar al cerrar.
+  - Impacto: JS maneja estado local, muestra detalle en footer antes de confirmar.
+
+- Fecha: 2026-04-16
+  - Contexto: Al agregar productos a mesa en estado PAGANDO, debía volver a OCUPADA según flujo definido en flows.md.
+  - Decisión: Llamar directamente al método existente `DiningTableService.reopen_table()` en lugar de duplicar lógica.
+  - Justificación: Consistencia con el código base, reutilización de validaciones existentes.
+  - Impacto: Transición automática PAGANDO→OCUPADA al confirmar pedido.
+
+- Fecha: 2026-04-16
+  - Contexto: Necesitábamos layout responsive que funcionara en móvil sin ocupar toda la pantalla.
+  - Decisión: Contenedor principal con flex column (categorías | productos | carrito detalle) con altura fija y overflow interno.
+  - Justificación: Scroll nativo en secciones específicas, evita problemas de altura total de pantalla.
+  - Impacto: CSS con max-height en footer, overflow-y:auto en body del side panel.
+
+- Fecha: 2026-04-16
+  - Contexto: Elementos con clase Bootstrap d-flex mostraban altura de 100vh inadvertidamente.
+  - Decisión: Reemplazar `.d-flex` genérico por `.app-layout` específico en grastro.css y base.html.
+  - Justificación: Regla CSS genérica afectaba todos los elementos Bootstrap, causando layout roto.
+  - Impacto: Layout funciona correctamente en todas las vistas.

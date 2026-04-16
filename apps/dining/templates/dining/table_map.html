@@ -1,12 +1,43 @@
-{% extends 'grastro/base.html' %}
+{% extends "grastro/base.html" %}
 
-{% block title %}Mesas - Gastropos{% endblock %}
+{% block title %}Mapa de Salón - Gastropos{% endblock %}
+{% block header_title %}Mapa de Salón{% endblock %}
 
 {% block content %}
-<div class="row">
-    <div class="col-12">
-        <h4>Mesas</h4>
-        <p class="text-muted">Mapa del salón</p>
+<div id="modal-container"></div>
+
+<div class="row g-2">
+    {% for table in tables %}
+    <div class="col-6 col-md-4 col-lg-3">
+        {% if table.estado == 'DISPONIBLE' %}
+        <div class="card text-center bg-success text-white border-0"
+                hx-get="{% url 'dining:table-open-modal' table.pk %}"
+                hx-target="#modal-container"
+                style="cursor: pointer;">
+        {% elif table.estado == 'OCUPADA' %}
+        <a href="{% url 'orders:mesa-pedido' table.pk %}" class="text-decoration-none d-block">
+        <div class="card text-center bg-danger text-white border-0" style="cursor: pointer;">
+        {% elif table.estado == 'PAGANDO' %}
+        <a href="{% url 'orders:mesa-pedido' table.pk %}" class="text-decoration-none d-block">
+        <div class="card text-center bg-warning text-dark border-0" style="cursor: pointer;">
+        {% else %}
+        <div class="card text-center bg-secondary text-white border-0">
+        {% endif %}
+            <div class="card-body p-2">
+                <h4 class="mb-0">{{ table.numero }}</h4>
+                <small>{{ table.get_estado_display }}</small>
+            </div>
+        {% if table.estado == 'OCUPADA' or table.estado == 'PAGANDO' %}
+        </div>
+        </a>
+        {% else %}
+        </div>
+        {% endif %}
     </div>
+    {% empty %}
+    <div class="col-12 text-center py-5 text-muted">
+        No hay mesas configuradas
+    </div>
+    {% endfor %}
 </div>
 {% endblock %}

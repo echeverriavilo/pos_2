@@ -1,0 +1,12 @@
+{% for item in order_items %}
+<div class="d-flex justify-content-between py-1 px-2 border-bottom">
+    <span><strong>{{ item.cantidad }}x</strong> {{ item.product.nombre }}</span>
+    <span>${{ item.precio_unitario_snapshot|floatformat:0 }}</span>
+</div>
+{% empty %}
+<div class="text-center text-muted py-2">Sin productos</div>
+{% endfor %}
+<div class="d-flex justify-content-between py-1 px-2 bg-light fw-bold">
+    <span>TOTAL</span>
+    <span class="text-success">${{ order.total_bruto|floatformat:0 }}</span>
+</div>

@@ -37,7 +37,7 @@
     {% block extra_css %}{% endblock %}
 </head>
 <body>
-    <div class="d-flex">
+    <div class="app-layout">
         <!-- Sidebar -->
         <nav id="sidebar" class="sidebar">
             <div class="sidebar-header">
@@ -99,7 +99,7 @@
         </nav>
 
         <!-- Main Content -->
-        <main class="flex-grow-1 main-content">
+        <main class="main-content">
             <!-- Header Superior -->
             <header class="top-header">
                 <button id="menu-toggle" class="btn btn-outline-secondary d-md-none">
@@ -128,7 +128,7 @@
                 </div>
             </header>
 
-            <div class="container-fluid p-4">
+            <div class="content-area">
                 {% block content %}{% endblock %}
             </div>
         </main>

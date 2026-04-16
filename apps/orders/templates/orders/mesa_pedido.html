@@ -1,0 +1,372 @@
+{% extends "grastro/base.html" %}
+
+{% block title %}Mesa {{ table.numero }} - Gastropos{% endblock %}
+{% block header_title %}<a href="{% url 'dining:table-map' %}" class="text-decoration-none text-dark"><i class="bi bi-arrow-left"></i> Mesa {{ table.numero }}</a>{% endblock %}
+
+{% block extra_css %}
+<style>
+.side-panel {
+    position: fixed;
+    top: 0;
+    right: -100%;
+    width: 100%;
+    max-width: 400px;
+    height: 100vh;
+    background: white;
+    z-index: 2000;
+    transition: right 0.3s ease;
+    display: flex;
+    flex-direction: column;
+}
+.side-panel.open {
+    right: 0;
+}
+.side-panel-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 0.75rem 1rem;
+    background: var(--gastro-primary, #2c3e50);
+    color: white;
+}
+.side-panel-body {
+    flex: 1;
+    overflow-y: auto;
+    padding: 0.5rem;
+    display: flex;
+    flex-direction: column;
+}
+.side-panel-body .category-section {
+    flex-shrink: 0;
+}
+.side-panel-body .products-section {
+    flex: 1;
+    overflow-y: auto;
+}
+.side-panel-footer {
+    padding: 0.75rem 1rem;
+    border-top: 1px solid #dee2e6;
+    background: #f8f9fa;
+    max-height: 40vh;
+    overflow-y: auto;
+}
+.category-chips {
+    display: flex;
+    gap: 0.5rem;
+    overflow-x: auto;
+    padding-bottom: 0.5rem;
+    -webkit-overflow-scrolling: touch;
+}
+.category-chip {
+    flex-shrink: 0;
+    padding: 0.25rem 0.75rem;
+    border-radius: 1rem;
+    background: #e9ecef;
+    border: none;
+    font-size: 0.85rem;
+    white-space: nowrap;
+}
+.category-chip.active {
+    background: var(--gastro-secondary, #3498db);
+    color: white;
+}
+.product-row {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 0.5rem;
+    border-bottom: 1px solid #eee;
+}
+.product-info {
+    flex: 1;
+}
+.product-name {
+    font-weight: 500;
+    margin: 0;
+    font-size: 0.9rem;
+}
+.product-price {
+    color: #27ae60;
+    font-size: 0.85rem;
+    margin: 0;
+}
+.product-actions {
+    display: flex;
+    align-items: center;
+    gap: 0.25rem;
+}
+.qty-btn {
+    width: 32px;
+    height: 32px;
+    padding: 0;
+    font-size: 1.2rem;
+    line-height: 1;
+}
+.qty-display {
+    min-width: 30px;
+    text-align: center;
+    font-weight: 600;
+}
+.overlay {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background: rgba(0,0,0,0.5);
+    z-index: 1999;
+    display: none;
+}
+.overlay.show {
+    display: block;
+}
+.cart-item {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 0.25rem 0;
+    font-size: 0.85rem;
+    border-bottom: 1px solid #eee;
+}
+.cart-item:last-child {
+    border-bottom: none;
+}
+.cart-item-remove {
+    color: #dc3545;
+    cursor: pointer;
+    padding: 0 0.25rem;
+}
+</style>
+{% endblock %}
+
+{% block content %}
+
+<div id="cuenta-container">
+    <div class="small">
+        <div class="list-group-item bg-dark text-white py-1 px-2">
+            <strong><i class="bi bi-receipt me-1"></i>Cuenta</strong>
+        </div>
+        {% for item in order_items %}
+        <div class="list-group-item d-flex justify-content-between py-1 px-2">
+            <span><strong>{{ item.cantidad }}x</strong> {{ item.product.nombre }}</span>
+            <span>${{ item.precio_unitario_snapshot|floatformat:0 }}</span>
+        </div>
+        {% empty %}
+        <div class="list-group-item text-center text-muted py-2">Sin productos</div>
+        {% endfor %}
+        <div class="list-group-item bg-light d-flex justify-content-between py-1 px-2">
+            <strong>TOTAL</strong>
+            <strong class="text-success">${{ order.total_bruto|floatformat:0 }}</strong>
+        </div>
+    </div>
+</div>
+
+<button class="btn btn-success w-100 mb-2 py-1" onclick="openSidePanel()">
+    <i class="bi bi-plus-circle me-1"></i>Agregar Pedido
+</button>
+
+<div class="d-flex gap-1 mb-1">
+    <button class="btn btn-primary flex-fill py-1" disabled><i class="bi bi-credit-card"></i></button>
+    <button class="btn btn-warning flex-fill py-1" disabled><i class="bi bi-cash"></i></button>
+    <button class="btn btn-danger flex-fill py-1" disabled><i class="bi bi-x-circle"></i></button>
+</div>
+
+<button class="btn btn-outline-secondary w-100 py-1 mb-3" disabled>
+    <i class="bi bi-arrow-left-right me-1"></i>Cambiar Mesa
+</button>
+
+<a href="{% url 'dining:table-map' %}" class="btn btn-link w-100 py-0">
+    <i class="bi bi-grid-3x3-gap me-1"></i>Volver al Mapa
+</a>
+
+<div class="overlay" id="overlay" onclick="closeSidePanel()"></div>
+
+<div class="side-panel" id="sidePanel">
+    <div class="side-panel-header">
+        <span><i class="bi bi-plus-circle me-2"></i>Nuevo Pedido</span>
+        <button class="btn btn-link text-white p-0" onclick="closeSidePanel()">
+            <i class="bi bi-x-lg"></i>
+        </button>
+    </div>
+    
+    <div class="side-panel-body">
+        <div class="category-section">
+            <div class="category-chips" id="categoryChips">
+                <button class="category-chip active" onclick="filterCategory(0)">Todos</button>
+                {% for category in categories %}
+                <button class="category-chip" data-category="{{ category.id }}" onclick="filterCategory({{ category.id }})">{{ category.nombre }}</button>
+                {% endfor %}
+            </div>
+        </div>
+        
+        <div class="products-section" id="productList">
+            {% for product in products %}
+            <div class="product-row" data-category="{{ product.category_id }}">
+                <div class="product-info">
+                    <p class="product-name">{{ product.nombre }}</p>
+                    <p class="product-price">${{ product.precio_bruto|floatformat:0 }}</p>
+                </div>
+                <div class="product-actions">
+                    <button class="btn btn-outline-secondary qty-btn" onclick="changeQty({{ product.id }}, -1)">-</button>
+                    <span class="qty-display" id="qty-{{ product.id }}">0</span>
+                    <button class="btn btn-outline-secondary qty-btn" onclick="changeQty({{ product.id }}, 1)">+</button>
+                </div>
+            </div>
+            {% empty %}
+            <p class="text-center text-muted py-4">No hay productos</p>
+            {% endfor %}
+        </div>
+    </div>
+    
+    <div class="side-panel-footer">
+        <div class="mb-2">
+            <strong><i class="bi bi-cart3 me-1"></i>Pedido:</strong>
+        </div>
+        <div id="cartDetail">
+            <p class="text-muted text-center mb-0 py-2">Sin productos seleccionados</p>
+        </div>
+        <div class="d-flex justify-content-between border-top pt-2 mt-2">
+            <strong>Total:</strong>
+            <strong class="text-success">$<span id="cartTotal">0</span></strong>
+        </div>
+        <button class="btn btn-success w-100 mt-2" onclick="confirmOrder()" id="btnConfirmar" disabled>
+            Confirmar Pedido
+        </button>
+    </div>
+</div>
+
+<script>
+const tableId = {{ table.id }};
+const csrfToken = '{{ csrf_token }}';
+const products = [
+    {% for product in products %}
+    { id: {{ product.id }}, nombre: '{{ product.nombre }}', precio: {{ product.precio_bruto }}, categoria_id: {{ product.category_id }} },
+    {% endfor %}
+];
+
+const cart = {};
+let currentCategory = 0;
+
+function openSidePanel() {
+    document.getElementById('sidePanel').classList.add('open');
+    document.getElementById('overlay').classList.add('show');
+    document.body.style.overflow = 'hidden';
+}
+
+function closeSidePanel() {
+    document.getElementById('sidePanel').classList.remove('open');
+    document.getElementById('overlay').classList.remove('show');
+    document.body.style.overflow = '';
+}
+
+function filterCategory(categoryId) {
+    currentCategory = categoryId;
+    
+    document.querySelectorAll('.category-chip').forEach(chip => {
+        const chipCat = chip.dataset.category ? parseInt(chip.dataset.category) : 0;
+        chip.classList.toggle('active', chipCat === categoryId);
+    });
+    
+    document.querySelectorAll('.product-row').forEach(row => {
+        const rowCat = row.dataset.category ? parseInt(row.dataset.category) : null;
+        const show = categoryId === 0 || rowCat === categoryId;
+        row.style.display = show ? '' : 'none';
+    });
+}
+
+function changeQty(productId, delta) {
+    if (!cart[productId]) {
+        cart[productId] = 0;
+    }
+    cart[productId] += delta;
+    if (cart[productId] <= 0) {
+        delete cart[productId];
+    }
+    
+    document.getElementById('qty-' + productId).textContent = cart[productId] || 0;
+    updateCartSummary();
+}
+
+function removeFromCart(productId) {
+    delete cart[productId];
+    document.getElementById('qty-' + productId).textContent = 0;
+    updateCartSummary();
+}
+
+function updateCartSummary() {
+    let total = 0;
+    let html = '';
+    
+    for (const [pid, qty] of Object.entries(cart)) {
+        if (qty > 0) {
+            const product = products.find(p => p.id == pid);
+            if (product) {
+                total += product.precio * qty;
+                html += `
+                    <div class="cart-item">
+                        <span>${qty}x ${product.nombre}</span>
+                        <span class="d-flex align-items-center gap-2">
+                            <span>$${(product.precio * qty).toLocaleString('es-CL')}</span>
+                            <i class="bi bi-trash cart-item-remove" onclick="removeFromCart(${pid})"></i>
+                        </span>
+                    </div>
+                `;
+            }
+        }
+    }
+    
+    if (html === '') {
+        html = '<p class="text-muted text-center mb-0 py-2">Sin productos seleccionados</p>';
+    }
+    
+    document.getElementById('cartDetail').innerHTML = html;
+    document.getElementById('cartTotal').textContent = total.toLocaleString('es-CL');
+    document.getElementById('btnConfirmar').disabled = total === 0;
+}
+
+function confirmOrder() {
+    const items = [];
+    for (const [pid, qty] of Object.entries(cart)) {
+        if (qty > 0) {
+            items.push({ product_id: parseInt(pid), cantidad: qty });
+        }
+    }
+    
+    if (items.length === 0) return;
+    
+    const btn = document.getElementById('btnConfirmar');
+    btn.disabled = true;
+    btn.innerHTML = '<span class="spinner-border spinner-border-sm me-1"></span>Enviando...';
+    
+    fetch('{% url "orders:mesa-confirmar" table.id %}', {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+            'X-CSRFToken': csrfToken
+        },
+        body: JSON.stringify({ items: items })
+    })
+    .then(response => response.text())
+    .then(html => {
+        document.getElementById('cuenta-container').innerHTML = html;
+        closeSidePanel();
+        
+        Object.keys(cart).forEach(pid => {
+            cart[pid] = 0;
+            const qtyEl = document.getElementById('qty-' + pid);
+            if (qtyEl) qtyEl.textContent = 0;
+        });
+        updateCartSummary();
+        
+        btn.disabled = false;
+        btn.innerHTML = 'Confirmar Pedido';
+    })
+    .catch(error => {
+        console.error('Error:', error);
+        btn.disabled = false;
+        btn.innerHTML = 'Confirmar Pedido';
+        alert('Error al confirmar el pedido');
+    });
+}
+</script>
+{% endblock %}

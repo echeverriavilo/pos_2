@@ -1,0 +1,45 @@
+<div class="modal fade" id="openTableModal" tabindex="-1" aria-labelledby="openTableModalLabel" aria-hidden="true">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title" id="openTableModalLabel">Abrir Mesa {{ table.numero }}</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body">
+                <form id="openTableForm" hx-post="{% url 'dining:table-open' table.pk %}" hx-swap="none">
+                    {% csrf_token %}
+                    
+                    <div class="mb-3">
+                        <label for="waiterSelect" class="form-label">Garzón Asignado</label>
+                        <select class="form-select" id="waiterSelect" name="waiter_id">
+                            {% for waiter in waiters %}
+                                <option value="{{ waiter.id }}" {% if waiter.id == request.user.id %}selected{% endif %}>
+                                    {{ waiter.get_short_name }}
+                                </option>
+                            {% endfor %}
+                        </select>
+                    </div>
+                    
+                    <p class="text-muted small">Al abrir la mesa, serás redirigido automáticamente al punto de venta para tomar el pedido inicial.</p>
+                </form>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancelar</button>
+                <button type="submit" form="openTableForm" class="btn btn-primary">Abrir y Tomar Pedido</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+    (function() {
+        var modalEl = document.getElementById('openTableModal');
+        var modal = new bootstrap.Modal(modalEl);
+        modal.show();
+        
+        // Clean up when hidden
+        modalEl.addEventListener('hidden.bs.modal', function () {
+            document.getElementById('modal-container').innerHTML = '';
+        });
+    })();
+</script>
