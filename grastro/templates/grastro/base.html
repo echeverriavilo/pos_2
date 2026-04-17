@@ -8,6 +8,7 @@
     <meta name="theme-color" content="#0d6efd">
     <title>{% block title %}Gastropos{% endblock %}</title>
 
+    <meta name="csrf-token" content="{{ csrf_token }}">
     <link rel="stylesheet" href="{% static 'vendor/bootstrap/5.3/bootstrap.min.css' %}">
     <link rel="stylesheet" href="{% static 'vendor/bootstrap-icons/bootstrap-icons.css' %}">
     <script src="https://unpkg.com/htmx.org@2.0.4"></script>

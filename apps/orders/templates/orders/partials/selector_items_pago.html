@@ -1,0 +1,34 @@
+<div id="selector-items">
+    <p class="text-muted small mb-2">Selecciona los items y ajusta la cantidad a pagar:</p>
+    
+    <div class="list-group mb-3">
+        {% for item in items %}
+        <div class="list-group-item d-flex justify-content-between align-items-center py-2" data-item-id="{{ item.id }}">
+            <div class="form-check mb-0 flex-grow-1">
+                <input class="form-check-input item-checkbox" type="checkbox" name="items[]" value="{{ item.id }}" data-price="{{ item.precio_unitario_snapshot|floatformat:0 }}">
+                <span class="form-check-label ms-2">
+                    <strong>{{ item.product.nombre }}</strong>
+                    <small class="text-muted">(${{ item.precio_unitario_snapshot|floatformat:0 }}/u)</small>
+                </span>
+            </div>
+            <div class="d-flex align-items-center gap-1 ms-2">
+                <button type="button" class="btn btn-outline-secondary btn-sm qty-minus" style="width:28px;height:28px;padding:0;" disabled>-</button>
+                <input type="number" class="form-control form-control-sm item-qty text-center" value="{{ item.cantidad }}" min="1" max="{{ item.cantidad }}" style="width:55px;" disabled>
+                <button type="button" class="btn btn-outline-secondary btn-sm qty-plus" style="width:28px;height:28px;padding:0;" disabled>+</button>
+                <span class="badge bg-primary ms-1 item-subtotal">${{ item.get_total|floatformat:0 }}</span>
+            </div>
+        </div>
+        {% empty %}
+        <div class="list-group-item text-center text-muted">No hay items pendientes</div>
+        {% endfor %}
+    </div>
+    
+    <div class="d-flex justify-content-between mb-2 fw-bold">
+        <span>Seleccionado:</span>
+        <span id="selected-total">$0</span>
+    </div>
+    
+    <button type="button" class="btn btn-success w-100" id="btn-pay-products" disabled onclick="submitProductsPayment('{{ order.id }}', event)">
+        <i class="bi bi-check-circle me-1"></i>Pagar seleccionados
+    </button>
+</div>

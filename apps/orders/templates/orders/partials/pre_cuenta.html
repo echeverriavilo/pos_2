@@ -1,0 +1,73 @@
+<div class="card">
+    <div class="card-header bg-dark text-white">
+        <strong><i class="bi bi-receipt me-1"></i>Pre-Cuenta</strong>
+    </div>
+    <div class="card-body p-0">
+        <div class="p-3" style="font-family: monospace;">
+            {% if paid_items %}
+            <div class="mb-2">
+                <small class="text-muted fw-bold">ITEMS PAGADOS</small>
+            </div>
+            {% for item in paid_items %}
+            <div class="d-flex justify-content-between text-decoration-line-through text-muted">
+                <span>{{ item.cantidad }}x {{ item.product.nombre }}</span>
+                <span>${{ item.get_total|floatformat:0 }}</span>
+            </div>
+            {% endfor %}
+            <hr>
+            {% endif %}
+            
+            {% if unpaid_items %}
+            <div class="mb-2">
+                <small class="text-muted fw-bold">ITEMS PENDIENTES</small>
+            </div>
+            {% for item in unpaid_items %}
+            <div class="d-flex justify-content-between">
+                <span>{{ item.cantidad }}x {{ item.product.nombre }}</span>
+                <span>${{ item.get_total|floatformat:0 }}</span>
+            </div>
+            {% endfor %}
+            {% endif %}
+            
+            <hr>
+            
+            <div class="d-flex justify-content-between">
+                <span>Neto:</span>
+                <span>${{ iva_breakdown.neto|floatformat:0 }}</span>
+            </div>
+            <div class="d-flex justify-content-between">
+                <span>IVA:</span>
+                <span>${{ iva_breakdown.iva|floatformat:0 }}</span>
+            </div>
+            <div class="d-flex justify-content-between fw-bold">
+                <span>Subtotal:</span>
+                <span>${{ iva_breakdown.total_bruto|floatformat:0 }}</span>
+            </div>
+            <div class="d-flex justify-content-between">
+                <span>Propina sugerida (10%):</span>
+                <span>${{ suggested_tip|floatformat:0 }}</span>
+            </div>
+            {% if order.propina_monto > 0 %}
+            <div class="d-flex justify-content-between">
+                <span>Propina aplicada:</span>
+                <span>${{ order.propina_monto|floatformat:0 }}</span>
+            </div>
+            {% endif %}
+            
+            <hr>
+            
+            <div class="d-flex justify-content-between fw-bold">
+                <span>TOTAL:</span>
+                <span>${{ total_cuenta|floatformat:0 }}</span>
+            </div>
+            <div class="d-flex justify-content-between text-primary">
+                <span>Pagado:</span>
+                <span>${{ total_paid|floatformat:0 }}</span>
+            </div>
+            <div class="d-flex justify-content-between fw-bold text-danger">
+                <span>PENDIENTE:</span>
+                <span>${{ total_pending|floatformat:0 }}</span>
+            </div>
+        </div>
+    </div>
+</div>

@@ -1,0 +1,35 @@
+<div hx-swap-oob="true:#mesa-actions" id="mesa-actions">
+    {% if table.estado == 'OCUPADA' %}
+        {% if has_active_items %}
+        <button class="btn btn-warning w-100 mb-1 py-1"
+                hx-post="{% url 'orders:mesa-solicitar-cuenta' table.id %}"
+                hx-target="#cuenta-container"
+                hx-swap="innerHTML">
+            <i class="bi bi-receipt me-1"></i>Solicitar Cuenta
+        </button>
+        {% else %}
+        <button class="btn btn-outline-danger w-100 mb-1 py-1"
+                hx-post="{% url 'orders:mesa-liberar' table.id %}"
+                hx-target="#cuenta-container"
+                hx-swap="innerHTML">
+            <i class="bi bi-x-circle me-1"></i>Cerrar Mesa (sin pedidos)
+        </button>
+        {% endif %}
+    {% elif table.estado == 'PAGANDO' %}
+        {% if has_active_items %}
+        <button class="btn btn-primary w-100 mb-1 py-1"
+                hx-get="{% url 'orders:mesa-modal-pago' table.id %}"
+                hx-target="#modal-pago-container"
+                hx-swap="innerHTML">
+            <i class="bi bi-credit-card me-1"></i>Pagar
+        </button>
+        {% else %}
+        <button class="btn btn-outline-danger w-100 mb-1 py-1"
+                hx-post="{% url 'orders:mesa-liberar' table.id %}"
+                hx-target="#cuenta-container"
+                hx-swap="innerHTML">
+            <i class="bi bi-x-circle me-1"></i>Cerrar Mesa (sin pedidos)
+        </button>
+        {% endif %}
+    {% endif %}
+</div>

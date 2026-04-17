@@ -91,7 +91,11 @@ def create_order_for_table(*, user, table) -> Order:
 
 
 def add_or_update_item_in_order(*, user, order, product: Product, cantidad: int) -> OrderItem:
-    """Agrega o actualiza la cantidad de un ítem en la orden."""
+    """Agrega o actualiza la cantidad de un ítem en la orden.
+
+    Si el producto ya existe como ítem no pagado/no anulado, incrementa su cantidad.
+    Si el ítem existente está PAGADO o ANULADO, crea uno nuevo para no modificar el inmutable.
+    """
     validate_tenant_access(user, order.tenant)
     validate_role_permission(user, SystemActions.ADD_ITEM)
     if order.estado in {Order.States.COMPLETADO, Order.States.ANULADO}:
@@ -101,18 +105,27 @@ def add_or_update_item_in_order(*, user, order, product: Product, cantidad: int)
     if cantidad <= 0:
         raise OrderItemError('La cantidad debe ser mayor que cero.')
 
+    modifiable_states = {OrderItem.States.PENDIENTE, OrderItem.States.PREPARACION, OrderItem.States.ENTREGADO}
+
     with transaction.atomic():
-        item, created = OrderItem.objects.get_or_create(
+        existing_item = OrderItem.objects.filter(
             order=order,
             product=product,
-            defaults={
-                'cantidad': 0,
-                'precio_unitario_snapshot': product.precio_bruto,
-                'estado': (OrderItem.States.PREPARACION if order.tipo_flujo == Order.Flow.MESA else OrderItem.States.PENDIENTE),
-            }
-        )
-        item.cantidad += cantidad
-        item.save(update_fields=['cantidad'])
+            estado__in=modifiable_states,
+        ).first()
+
+        if existing_item:
+            existing_item.cantidad += cantidad
+            existing_item.save(update_fields=['cantidad'])
+            item = existing_item
+        else:
+            item = OrderItem.objects.create(
+                order=order,
+                product=product,
+                cantidad=cantidad,
+                precio_unitario_snapshot=product.precio_bruto,
+                estado=(OrderItem.States.PREPARACION if order.tipo_flujo == Order.Flow.MESA else OrderItem.States.PENDIENTE),
+            )
         
         recalculate_total(order)
         

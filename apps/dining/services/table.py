@@ -61,3 +61,34 @@ class DiningTableService:
             table.estado = DiningTable.States.OCUPADA
             table.save(update_fields=['estado'])
             return table
+
+    @classmethod
+    def release_table(cls, *, user, table):
+        """Cierra una mesa OCUPADA o PAGANDO sin movimientos activos.
+
+        Si la mesa tiene una orden sin ítems activos (todos anulados o vacía),
+        anula la orden y libera la mesa a DISPONIBLE.
+        """
+        validate_tenant_access(user, table.tenant)
+        validate_role_permission(user, SystemActions.MANAGE_TABLES)
+        if table.estado not in {DiningTable.States.OCUPADA, DiningTable.States.PAGANDO}:
+            raise DiningTableError('Solo se puede liberar una mesa OCUPADA o PAGANDO.')
+
+        order = DiningTableSelector.get_active_order_for_table(table)
+        if not order:
+            with transaction.atomic():
+                table.estado = DiningTable.States.DISPONIBLE
+                table.save(update_fields=['estado'])
+                return table
+
+        # Verificar que no tenga ítems activos (no anulados)
+        has_active_items = order.items.exclude(estado='ANULADO').exists()
+        if has_active_items:
+            raise DiningTableError('No se puede liberar una mesa con pedidos activos. Anula los pedidos primero.')
+
+        with transaction.atomic():
+            from apps.orders.services.order import transition_order_state
+            transition_order_state(user=user, order=order, target_state=order.States.ANULADO)
+            table.estado = DiningTable.States.DISPONIBLE
+            table.save(update_fields=['estado'])
+            return table

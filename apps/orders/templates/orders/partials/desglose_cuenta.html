@@ -1,0 +1,32 @@
+<div class="card mb-3">
+    <div class="card-header"><strong><i class="bi bi-receipt me-1"></i>Desglose de Cuenta</strong></div>
+    <div class="card-body">
+        <div class="d-flex justify-content-between mb-1">
+            <span>Neto:</span>
+            <span>${{ iva_breakdown.neto|floatformat:0 }}</span>
+        </div>
+        <div class="d-flex justify-content-between mb-1">
+            <span>IVA:</span>
+            <span>${{ iva_breakdown.iva|floatformat:0 }}</span>
+        </div>
+        <div class="d-flex justify-content-between mb-1">
+            <span>Propina:</span>
+            <span>
+                {% include "orders/partials/propina_selector.html" %}
+            </span>
+        </div>
+        <hr>
+        <div class="d-flex justify-content-between fw-bold">
+            <span>TOTAL CUENTA:</span>
+            <span class="text-success">${{ total_cuenta|floatformat:0 }}</span>
+        </div>
+        <div class="d-flex justify-content-between mt-2">
+            <span>Pagado:</span>
+            <span class="text-primary">${{ total_paid|floatformat:0 }}</span>
+        </div>
+        <div class="d-flex justify-content-between fw-bold text-danger">
+            <span>PENDIENTE:</span>
+            <span>${{ total_pending|floatformat:0 }}</span>
+        </div>
+    </div>
+</div>

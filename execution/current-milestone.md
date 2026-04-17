@@ -2,26 +2,23 @@
 
 ## Milestone
 
-Hito 09 — Mapa de Salón y Gestión de Mesas
+Hito 11 — Módulo de Pagos y Cierre de Cuenta
 
 ## Estado general
 
-- Hitos 01-08 completados
-- Hito 09: COMPLETADO
-  - View de mapa de salón con grid de mesas
-  - Colores por estado (DISPONIBLE=verde, OCUPADA=rojo, PAGANDO=amarillo)
-  - Modal de apertura Bootstrap con HTMX
-  - Vista mesa_pedido.html (mobile-first para garzones)
-  - Side panel para nuevo pedido con carrito temporal
-  - Filtro por categorías funcional
-  - Confirmar pedido agrega productos y cambia PAGANDO→OCUPADA
-  - Tests: 35 pasando
+- Hitos 01-11 completados
+- Hito 11: COMPLETADO
+  - Fase 1: Backend Core ✅
+  - Fase 2: Views/URLs ✅
+  - Fase 3: Frontend Templates ✅
+  - Fase 4: Testing ✅
+  - Fase 5: Validación ✅
 
 ---
 
 ## Phase
 
-Execution Phase - Completed
+Completed
 
 ---
 
@@ -39,28 +36,17 @@ completed
 
 ## Fecha completion
 
-2026-04-16
+2026-04-17
 
 ---
 
-## Phase
+## Decisión de diseño
 
-Execution Phase - Completed
-
----
-
-## Status
-
-completed
-
----
-
-## Fecha inicio
-
-2026-04-16
-
----
-
-## Fecha completion
-
-2026-04-16
+- Propina incluida en total_cuenta: total_cuenta = total_bruto + propina_monto
+- Condición de completado: total_paid >= total_cuenta
+- TransactionSelector.total_pending() usa total_cuenta
+- fetch() sobre hx-post para todos los formularios de pago (confiabilidad CSRF)
+- Selección de template por order.table_id (mesa vs terminal)
+- Propina 10% auto-aplicada al abrir modal si propina_monto == 0
+- Sticky bar en lugar de fixed para evitar solapamiento con sidebar
+- 100 tests pasando (15 payment_calculator + 7 hito11_corrections + 78 existentes)

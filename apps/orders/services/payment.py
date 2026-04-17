@@ -49,13 +49,18 @@ def _validate_order_for_payment(order: Order, tenant) -> None:
         raise TransactionError('La orden no admite nuevos pagos en su estado actual.')
 
 
-def _load_payment_items(*, tenant, order: Order, order_items: Iterable[OrderItem]) -> list[OrderItem]:
+def _load_payment_items(*, tenant, order: Order, order_items: Iterable[OrderItem], cantidades: dict | None = None) -> list[OrderItem]:
     """Carga y bloquea los ítems seleccionados para pago por productos.
+
+    Si se informa cantidades y alguna es menor a la cantidad del ítem,
+    se crea un ítem residual con la diferencia y se reduce el original
+    para marcarlo como PAGADO sin violar la invariante de inmutabilidad.
 
     Parámetros:
     - tenant: tenant de la operación.
     - order: orden pagada.
     - order_items: iterable de instancias o ids de OrderItem.
+    - cantidades: dict opcional {item_id: cantidad_a_pagar}.
 
     Retorno:
     - Lista de OrderItem bloqueados para actualización.
@@ -79,6 +84,28 @@ def _load_payment_items(*, tenant, order: Order, order_items: Iterable[OrderItem
             raise TransactionError('No se pueden pagar ítems anulados.')
         if item.estado == OrderItem.States.PAGADO:
             raise TransactionError('No se pueden volver a pagar ítems ya pagados.')
+
+    # Split items si se especifican cantidades parciales
+    if cantidades:
+        for item in locked_items:
+            cant_a_pagar = cantidades.get(str(item.pk)) or cantidades.get(item.pk)
+            if cant_a_pagar is not None:
+                cant_a_pagar = int(cant_a_pagar)
+                if cant_a_pagar <= 0:
+                    raise TransactionError(f'La cantidad para "{item.product.nombre}" debe ser mayor que cero.')
+                if cant_a_pagar > item.cantidad:
+                    raise TransactionError(f'La cantidad para "{item.product.nombre}" no puede exceder {item.cantidad}.')
+                if cant_a_pagar < item.cantidad:
+                    # Crear ítem residual con la diferencia
+                    OrderItem.objects.create(
+                        order=order,
+                        product=item.product,
+                        cantidad=item.cantidad - cant_a_pagar,
+                        precio_unitario_snapshot=item.precio_unitario_snapshot,
+                        estado=item.estado,
+                    )
+                    item.cantidad = cant_a_pagar
+                    item.save(update_fields=['cantidad'])
 
     return locked_items
 
@@ -148,14 +175,15 @@ def update_order_payment_state(*, user, order: Order) -> Order:
     with transaction.atomic():
         locked_order = Order.objects.select_for_update().get(pk=order.pk)
         total_paid = TransactionSelector.total_paid(locked_order)
-        if total_paid > locked_order.total_bruto:
-            raise TransactionError('El total pagado no puede exceder el total bruto de la orden.')
+        total_cuenta = TransactionSelector.total_cuenta(locked_order)
+        if total_paid > total_cuenta:
+            raise TransactionError('El total pagado no puede exceder el total de la cuenta.')
 
         if total_paid == Decimal('0'):
             return locked_order
 
         if locked_order.tipo_flujo == Order.Flow.MESA:
-            if total_paid < locked_order.total_bruto:
+            if total_paid < total_cuenta:
                 if locked_order.estado == Order.States.ABIERTO:
                     transition_order_state(user=user, order=locked_order, target_state=Order.States.PAGADO_PARCIAL)
                 return locked_order
@@ -169,7 +197,7 @@ def update_order_payment_state(*, user, order: Order) -> Order:
                 )
             return locked_order
 
-        if total_paid < locked_order.total_bruto:
+        if total_paid < total_cuenta:
             if locked_order.estado == Order.States.ABIERTO:
                 transition_order_state(user=user, order=locked_order, target_state=Order.States.PAGADO_PARCIAL)
             return locked_order
@@ -186,7 +214,7 @@ def update_order_payment_state(*, user, order: Order) -> Order:
         return locked_order
 
 
-def register_transaction(*, user, tenant, order: Order, payment_type: str, amount=None, order_items=None) -> Transaction:
+def register_transaction(*, user, tenant, order: Order, payment_type: str, amount=None, order_items=None, cantidades=None) -> Transaction:
     """Registra una transacción de pago respetando invariantes del dominio.
 
     Parámetros:
@@ -196,6 +224,7 @@ def register_transaction(*, user, tenant, order: Order, payment_type: str, amoun
     - payment_type: tipo de pago TOTAL, ABONO o PRODUCTOS.
     - amount: monto opcional según tipo.
     - order_items: ítems opcionales para pagos por productos.
+    - cantidades: dict opcional {item_id: cantidad_a_pagar} para pago parcial por cantidad.
 
     Retorno:
     - Transaction creada.
@@ -234,6 +263,7 @@ def register_transaction(*, user, tenant, order: Order, payment_type: str, amoun
                 tenant=tenant,
                 order=locked_order,
                 order_items=order_items or [],
+                cantidades=cantidades,
             )
             transaction_amount = _calculate_items_amount(locked_items)
             if amount is not None and Decimal(amount) != transaction_amount:

@@ -52,6 +52,11 @@
 - **[Hito 05]** `apply_payment_to_items`: marca ítems como PAGADO y crea asociaciones TransactionItem para pago por productos.
 - **[Hito 05]** `update_order_payment_state`: calcula total pagado acumulado y dispara transiciones de estado (ABIERTO → PAGADO_PARCIAL/CONFIRMADO/COMPLETADO).
 - **[Hito 05]** `TransactionSelector`: selectors para listar pagos por orden, calcular totales pagado/pendiente.
+  - **[Hito 11]** `total_cuenta`: retorna `total_bruto + propina_monto`
+  - **[Hito 11]** `total_pending`: actualizado para usar `total_cuenta`
+  - **[Hito 11]** `items_paid_amount`: suma de transacciones tipo PRODUCTOS
+- **[Hito 11]** `PaymentCalculator`: `calculate_iva_breakdown`, `calculate_suggested_tip`, `set_tip`
+- **[Hito 11]** `OrderItemSelector.get_unpaid_items`, `get_paid_items`: selectores de items por estado de pago
 - **[Hito 06]** `validate_tenant_access`: valida acceso al tenant (bypass para platform_staff).
 - **[Hito 06]** `validate_role_permission`: valida permiso del rol.
 
@@ -89,3 +94,5 @@ Todos los servicios reciben ahora parámetro `user` y validan:
 - **[Hito 07]** Dashboard: Página home con grid de cards enlazando a todos los módulos.
 - **[Hito 07]** Header superior: usuario autenticado, dropdown con configuración y logout, toggle de sidebar en móvil.
 - **[Hito 07]** Método get_short_name() en CustomUser: retorna first_name o email.split('@')[0].
+- **[Hito 10]** Backend de comandas: Dispositivo, ConfiguracionDispositivo, Comanda, ComandaItem. Generación automática de comandas por dispositivo.
+- **[Hito 11]** Módulo de Pagos y Cierre: PaymentCalculator (IVA, propina), total_cuenta, 6 vistas nuevas, 9 templates, 15 tests nuevos. 93 tests totales.

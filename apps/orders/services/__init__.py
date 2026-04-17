@@ -15,6 +15,12 @@ from .payment import (
     register_transaction,
     update_order_payment_state,
 )
+from .payment_calculator import (
+    PaymentCalculatorError,
+    calculate_iva_breakdown,
+    calculate_suggested_tip,
+    set_tip,
+)
 from .dispositivo import DispositivoService, DispositivoError
 from .comanda import ComandaService, ComandaError
 
@@ -23,15 +29,19 @@ __all__ = [
     'OrderItemError',
     'OrderStateTransitionError',
     'TransactionError',
+    'PaymentCalculatorError',
     'DispositivoError',
     'ComandaError',
     'add_or_update_item_in_order',
     'apply_payment_to_items',
+    'calculate_iva_breakdown',
+    'calculate_suggested_tip',
     'create_order',
     'create_order_for_table',
     'recalculate_total',
     'register_transaction',
     'remove_item_from_order',
+    'set_tip',
     'transition_order_state',
     'update_order_payment_state',
     'DispositivoService',

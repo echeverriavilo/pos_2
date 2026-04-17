@@ -26,7 +26,7 @@
 
 - Fecha: 2026-04-13
   - Contexto: Hito 3 formalizó la relación entre mesas y órdenes, con nuevas apps `dining` y `orders` que integran selectores, servicios y flujo de estados.
-  - Decisión: conceptuar “order activo” como los estados ABIERTO, PAGADO_PARCIAL y CONFIRMADO, delegar la creación de órdenes a `orders.services.create_order_for_table`, y dejar documentadas las invariantes/responsabilidades del servicio de mesas (estado de mesa vs. orden) para facilitar el OrderBatch/Comanda del hito 4.
+  - Decisión: conceptuar "order activo" como los estados ABIERTO, PAGADO_PARCIAL y CONFIRMADO, delegar la creación de órdenes a `orders.services.create_order_for_table`, y dejar documentadas las invariantes/responsabilidades del servicio de mesas (estado de mesa vs. orden) para facilitar el OrderBatch/Comanda del hito 4.
   - Justificación: mantener la propiedad de invariantes en `DiningTableService` y separar la creación de órdenes permite escalar el flujo hacia el motor de órdenes sin mezclar responsabilidades.
   - Impacto: la infraestructura queda organizada para el próximo hito, los selectores y servicios comparten la definición de estados activos y se documenta la necesidad futura de un modelo OrderBatch/Comanda.
 
@@ -111,3 +111,73 @@
   - Decisión: Reemplazar `.d-flex` genérico por `.app-layout` específico en grastro.css y base.html.
   - Justificación: Regla CSS genérica afectaba todos los elementos Bootstrap, causando layout roto.
   - Impacto: Layout funciona correctamente en todas las vistas.
+
+---
+
+## Hito 11 - Módulo de Pagos y Cierre de Cuenta
+
+- Fecha: 2026-04-16
+  - Contexto: Hito 11 requería procesamiento visual de pagos parciales con desglose de IVA/propina, selector de items, y cierre de cuenta.
+  - Decisión: Introducir `total_cuenta = total_bruto + propina_monto` como total a pagar. Actualizar `TransactionSelector.total_pending()` y todas las validaciones para usar este total. Condición de completado: `total_paid >= total_cuenta`.
+  - Justificación: El acceptance criteria exige desglose completo donde "total" incluye propina, comportamiento natural de un POS gastronómico.
+  - Impacto: `update_order_payment_state` ahora compara contra `total_cuenta`, `total_pending` incluye propina, pago TOTAL cubre propina automáticamente.
+
+- Fecha: 2026-04-16
+  - Contexto: Review post-implementación detectó que `propina_selector.html` destruía el modal al fijar propina porque retornaba solo el desglose parcial.
+  - Decisión: `orden_fijar_propina` ahora retorna el modal completo (`modal_pago.html`) en lugar de solo `desglose_cuenta.html`.
+  - Justificación: HTMX reemplaza el target completo, si solo retorna el desglose se pierden las pestañas de pago.
+  - Impacto: Modal se mantiene íntegro tras cambiar propina, usuario puede continuar pagando.
+
+- Fecha: 2026-04-16
+  - Contexto: `selector_items_pago.html` usaba `DOMContentLoaded` que no se dispara tras swap de HTMX.
+  - Decisión: Script ahora usa `htmx:afterSwap` además de `DOMContentLoaded`, con función reutilizable `initItemSelector(container)`.
+  - Justificación: HTMX no dispara DOMContentLoaded al hacer swap de contenido dinámico.
+  - Impacto: Checkboxes de pago por productos calculan subtotal correctamente tras cualquier actualización HTMX.
+
+- Fecha: 2026-04-16
+  - Contexto: `cuenta_actualizada.html` mostraba `precio_unitario_snapshot` en vez de `get_total` para cada item.
+  - Decisión: Cambiar a `item.get_total` para mostrar subtotal (cantidad × precio).
+  - Justificación: Inconsistencia visual con `pre_cuenta.html` y `selector_items_pago.html` que usan `get_total`.
+  - Impacto: Cuenta muestra correctamente el subtotal de cada item.
+
+- Fecha: 2026-04-17
+  - Contexto: Todos los formularios de pago con `hx-post` y `hx-include` generaban errores CSRF en modales Bootstrap porque el token no se propagaba correctamente dentro del DOM del modal.
+  - Decisión: Reemplazar todos los `hx-post` de formularios de pago con `fetch()` nativo, obteniendo CSRF desde `<meta name="csrf-token">`. Funciones centralizadas: `getCsrfToken()`, `paymentFetch()`, `submitTotalPayment()`, `submitAbono()`, `submitProductsPayment()`, `applyTip()`.
+  - Justificación: HTMX con `hx-include` no encontraba el campo CSRF cuando el formulario estaba dentro de un modal Bootstrap dinámico. `fetch()` con token de meta tag elimina el problema de scoping.
+  - Impacto: Todos los pagos (TOTAL, ABONO, PRODUCTOS) y propinas funcionan sin errores CSRF en ambos flujos (mesa y terminal).
+
+- Fecha: 2026-04-17
+  - Contexto: Las vistas `orden_procesar_pago` y `orden_fijar_propina` debían seleccionar template diferente según si la orden pertenece a una mesa o es de flujo rápido.
+  - Decisión: Usar `order.table_id` para determinar el template: si existe → `modal_pago.html`, si es None → `terminal_modal_pago.html`. Aplicado en los 3 `render()` de `orden_procesar_pago` y en `orden_fijar_propina`.
+  - Justificación: Flujo de mesa y flujo rápido tienen templates diferentes con estructura distinta. Antes usaban template hardcodeado o variable `table` faltante causando NoReverseMatch.
+  - Impacto: Ambos flujos funcionan correctamente con su template correspondiente. Variable `table` disponible en todos los contextos.
+
+- Fecha: 2026-04-17
+  - Contexto: Al abrir el modal de pago, la propina aparecía en $0 sin sugerencia, obligando al usuario a calcular y aplicar manualmente.
+  - Decisión: Cuando `order.propina_monto == 0`, los modales `mesa_modal_pago` y `terminal_modal_pago` auto-aplican la propina sugerida del 10% llamando a `set_tip()` al cargar.
+  - Justificación: En la mayoría de los restaurantes chilenos se aplica propina del 10% por defecto. El usuario puede modificarla o quitarla, pero no debería empezar en $0.
+  - Impacto: Propina 10% se calcula y muestra automáticamente al abrir modal de pago. Usuario puede editar con % o $ personalizados, o cancelar edición.
+
+- Fecha: 2026-04-17
+  - Contexto: La barra de acciones de mesa usaba `position: fixed` que se solapaba con el sidebar en desktop y causaba problemas de z-index.
+  - Decisión: Cambiar a `position: sticky; bottom: 0` dentro de `.content-area` con `z-index` apropiado.
+  - Justificación: Sticky positioning respeta el layout del sidebar y no requiere cálculos de offset manuales. Se comporta correctamente en desktop y móvil.
+  - Impacto: Barra de acciones visible sin solapar sidebar, consistente en ambos viewports.
+
+- Fecha: 2026-04-17
+  - Contexto: `mesa_liberar_mesa` llamaba `set_table_paying()` que transicionaba a PAGANDO en lugar de cerrar la mesa correctamente.
+  - Decisión: Cambiar a `release_table()` que transiciona a LIBRE, cerrando la mesa sin movimientos pendientes. Cambiar redirect de `/ordenes/mesa/{id}/` a `/salon/mesas/`.
+  - Justificación: Liberar mesa debe ponerla en LIBRE, no PAGANDO. El redirect debe llevar al mapa de mesas, no a la orden que ya se cerró.
+  - Impacto: Mesas se liberan correctamente y usuario es redirigido al mapa de mesas.
+
+- Fecha: 2026-04-17
+  - Contexto: `orden_procesar_pago` solo verificaba `Order.States.COMPLETADO` como condición de completado, pero el flujo rápido transiciona a CONFIRMADO (no COMPLETADO).
+  - Decisión: Cambiar condición a `Order.States.COMPLETADO or Order.States.CONFIRMADO`.
+  - Justificación: El flujo rápido marca la orden como CONFIRMADO al completar pago, no COMPLETADO. Sin este cambio, el modal no se cerraba ni redirigía correctamente.
+  - Impacto: Ambos flujos (mesa y rápido) cierran correctamente tras pago completo.
+
+- Fecha: 2026-04-17
+  - Contexto: `propina_selector.html` usaba un modal Bootstrap anidado dentro de otro modal, causando problemas de z-index y scroll.
+  - Decisión: Eliminar el modal anidado y reemplazar con edición inline: botones para % personalizado y $ fijo que muestran input directo dentro del selector.
+  - Justificación: Modales anidados en Bootstrap tienen problemas conocidos de z-index y focus trap. La edición inline es más simple y natural en mobile.
+  - Impacto: Propina se edita inline sin modales anidados, mejor UX en desktop y mobile.

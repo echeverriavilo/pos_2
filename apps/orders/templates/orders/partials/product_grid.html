@@ -16,7 +16,8 @@
                     <button class="btn btn-primary btn-sm"
                             hx-post="{% url 'orders:add-to-cart' product.id %}"
                             hx-target="#shopping-cart"
-                            hx-swap="innerHTML">
+                            hx-swap="innerHTML"
+                            hx-include="#csrf-form">
                         Agregar
                     </button>
                 </div>

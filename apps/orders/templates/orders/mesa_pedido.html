@@ -136,48 +136,136 @@
     cursor: pointer;
     padding: 0 0.25rem;
 }
+.mesa-bottom-bar {
+    position: sticky;
+    bottom: 0;
+    z-index: 999;
+    background: white;
+    border-top: 2px solid #dee2e6;
+    padding: 0.75rem 0;
+    margin-top: 1rem;
+}
 </style>
 {% endblock %}
 
 {% block content %}
 
+<form id="csrf-form" style="display: none;">{% csrf_token %}</form>
+
 <div id="cuenta-container">
-    <div class="small">
-        <div class="list-group-item bg-dark text-white py-1 px-2">
-            <strong><i class="bi bi-receipt me-1"></i>Cuenta</strong>
+
+<div class="card mb-2">
+    <div class="card-header bg-dark text-white py-1 px-2 d-flex justify-content-between align-items-center">
+        <strong><i class="bi bi-receipt me-1"></i>Cuenta</strong>
+        {% if table.estado == 'PAGANDO' %}
+        <span class="badge bg-warning text-dark">PAGANDO</span>
+        {% elif table.estado == 'OCUPADA' %}
+        <span class="badge bg-info text-dark">OCUPADA</span>
+        {% endif %}
+    </div>
+    <div class="card-body p-2">
+        {% if paid_items %}
+        <small class="text-muted fw-bold text-uppercase">Productos pagados</small>
+        {% for item in paid_items %}
+        <div class="d-flex justify-content-between py-1 px-1 text-decoration-line-through text-muted" style="font-size: 0.85rem;">
+            <span>{{ item.cantidad }}x {{ item.product.nombre }}</span>
+            <span>${{ item.get_total|floatformat:0 }}</span>
         </div>
+        {% endfor %}
+        <hr class="my-2">
+        {% endif %}
+
+        {% if unpaid_items %}
+        <small class="text-muted fw-bold text-uppercase">Productos pendientes</small>
+        {% for item in unpaid_items %}
+        <div class="d-flex justify-content-between py-1 px-1" style="font-size: 0.85rem;">
+            <span>{{ item.cantidad }}x {{ item.product.nombre }}</span>
+            <span>${{ item.get_total|floatformat:0 }}</span>
+        </div>
+        {% endfor %}
+        {% elif not paid_items %}
         {% for item in order_items %}
-        <div class="list-group-item d-flex justify-content-between py-1 px-2">
+        <div class="d-flex justify-content-between py-1 px-1" style="font-size: 0.85rem;">
             <span><strong>{{ item.cantidad }}x</strong> {{ item.product.nombre }}</span>
-            <span>${{ item.precio_unitario_snapshot|floatformat:0 }}</span>
+            <span>${{ item.get_total|floatformat:0 }}</span>
         </div>
         {% empty %}
-        <div class="list-group-item text-center text-muted py-2">Sin productos</div>
+        <p class="text-center text-muted mb-0 py-2">Sin productos</p>
         {% endfor %}
-        <div class="list-group-item bg-light d-flex justify-content-between py-1 px-2">
-            <strong>TOTAL</strong>
-            <strong class="text-success">${{ order.total_bruto|floatformat:0 }}</strong>
+        {% endif %}
+    </div>
+</div>
+
+<div class="card mb-2">
+    <div class="card-header bg-light py-1 px-2">
+        <strong><i class="bi bi-calculator me-1"></i>Desglose</strong>
+    </div>
+    <div class="card-body p-2" style="font-size: 0.9rem;">
+        <div class="d-flex justify-content-between mb-1">
+            <span>Neto:</span>
+            <span>${{ iva_breakdown.neto|floatformat:0 }}</span>
+        </div>
+        <div class="d-flex justify-content-between mb-1">
+            <span>IVA:</span>
+            <span>${{ iva_breakdown.iva|floatformat:0 }}</span>
+        </div>
+        <div class="d-flex justify-content-between mb-1 fw-bold">
+            <span>Subtotal:</span>
+            <span>${{ iva_breakdown.total_bruto|floatformat:0 }}</span>
+        </div>
+        <div class="d-flex justify-content-between mb-1">
+            <span>Propina:</span>
+            <span>{% if order.propina_monto > 0 %}<span class="text-success fw-bold">${{ order.propina_monto|floatformat:0 }}</span>{% else %}$0{% endif %}</span>
         </div>
     </div>
 </div>
 
-<button class="btn btn-success w-100 mb-2 py-1" onclick="openSidePanel()">
-    <i class="bi bi-plus-circle me-1"></i>Agregar Pedido
-</button>
-
-<div class="d-flex gap-1 mb-1">
-    <button class="btn btn-primary flex-fill py-1" disabled><i class="bi bi-credit-card"></i></button>
-    <button class="btn btn-warning flex-fill py-1" disabled><i class="bi bi-cash"></i></button>
-    <button class="btn btn-danger flex-fill py-1" disabled><i class="bi bi-x-circle"></i></button>
+<div class="card mb-2">
+    <div class="card-header bg-light py-1 px-2">
+        <strong><i class="bi bi-cash-coin me-1"></i>Total Cuenta</strong>
+    </div>
+    <div class="card-body p-2" style="font-size: 0.9rem;">
+        <div class="d-flex justify-content-between fw-bold fs-5">
+            <span>Total:</span>
+            <span class="text-success">${{ total_cuenta|floatformat:0 }}</span>
+        </div>
+        {% if total_paid > 0 %}
+        <hr class="my-2">
+        <div class="d-flex justify-content-between mb-1">
+            <span>Pagado:</span>
+            <span class="text-primary">${{ total_paid|floatformat:0 }}</span>
+        </div>
+        {% if transactions %}
+        {% for txn in transactions %}
+        <div class="d-flex justify-content-between ps-3" style="font-size: 0.8rem;">
+            <span><span class="badge bg-secondary">{{ txn.tipo_pago }}</span></span>
+            <span>${{ txn.monto|floatformat:0 }}</span>
+        </div>
+        {% endfor %}
+        {% endif %}
+        <div class="d-flex justify-content-between fw-bold text-danger fs-5 mt-1">
+            <span>Pendiente:</span>
+            <span>${{ total_pending|floatformat:0 }}</span>
+        </div>
+        {% endif %}
+    </div>
 </div>
 
-<button class="btn btn-outline-secondary w-100 py-1 mb-3" disabled>
-    <i class="bi bi-arrow-left-right me-1"></i>Cambiar Mesa
-</button>
+</div>
 
-<a href="{% url 'dining:table-map' %}" class="btn btn-link w-100 py-0">
-    <i class="bi bi-grid-3x3-gap me-1"></i>Volver al Mapa
-</a>
+<div class="mesa-bottom-bar">
+    <button class="btn btn-success w-100 mb-1 py-2" onclick="openSidePanel()">
+        <i class="bi bi-plus-circle me-1"></i>Agregar Pedido
+    </button>
+    <div id="mesa-actions">
+        {% include "orders/partials/mesa_actions.html" with has_active_items=has_active_items %}
+    </div>
+    <a href="{% url 'dining:table-map' %}" class="btn btn-outline-secondary w-100 py-1 mt-1">
+        <i class="bi bi-grid-3x3-gap me-1"></i>Volver al Mapa
+    </a>
+</div>
+
+<div id="modal-pago-container"></div>
 
 <div class="overlay" id="overlay" onclick="closeSidePanel()"></div>
 
@@ -331,33 +419,33 @@ function confirmOrder() {
             items.push({ product_id: parseInt(pid), cantidad: qty });
         }
     }
-    
     if (items.length === 0) return;
-    
     const btn = document.getElementById('btnConfirmar');
     btn.disabled = true;
     btn.innerHTML = '<span class="spinner-border spinner-border-sm me-1"></span>Enviando...';
-    
+    const csrfToken = document.querySelector('#csrf-form input[name=csrfmiddlewaretoken]')?.value || '';
     fetch('{% url "orders:mesa-confirmar" table.id %}', {
         method: 'POST',
-        headers: {
-            'Content-Type': 'application/json',
-            'X-CSRFToken': csrfToken
-        },
+        headers: { 'Content-Type': 'application/json', 'X-CSRFToken': csrfToken },
         body: JSON.stringify({ items: items })
     })
-    .then(response => response.text())
+    .then(response => {
+        const redirectUrl = response.headers.get('HX-Redirect');
+        if (redirectUrl) { window.location.href = redirectUrl; return; }
+        return response.text();
+    })
     .then(html => {
-        document.getElementById('cuenta-container').innerHTML = html;
+        if (html) {
+            const parser = new DOMParser();
+            const doc = parser.parseFromString(html, 'text/html');
+            const cuentaInner = doc.querySelector('#cuenta-container');
+            if (cuentaInner) document.getElementById('cuenta-container').innerHTML = cuentaInner.innerHTML;
+            const actionsInner = doc.querySelector('#mesa-actions');
+            if (actionsInner) document.getElementById('mesa-actions').innerHTML = actionsInner.innerHTML;
+        }
         closeSidePanel();
-        
-        Object.keys(cart).forEach(pid => {
-            cart[pid] = 0;
-            const qtyEl = document.getElementById('qty-' + pid);
-            if (qtyEl) qtyEl.textContent = 0;
-        });
+        Object.keys(cart).forEach(pid => { cart[pid] = 0; const q = document.getElementById('qty-'+pid); if(q) q.textContent=0; });
         updateCartSummary();
-        
         btn.disabled = false;
         btn.innerHTML = 'Confirmar Pedido';
     })
