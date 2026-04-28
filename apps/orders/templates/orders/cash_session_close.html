@@ -1,0 +1,171 @@
+{% extends "grastro/base.html" %}
+{% load currency %}
+
+{% block title %}Cerrar Caja - Gastropos{% endblock %}
+{% block header_title %}Cerrar Caja{% endblock %}
+
+{% block content %}
+<div class="container-fluid py-4">
+    <div class="row justify-content-center">
+        <div class="col-lg-10">
+
+            <form method="post" action="{% url 'orders:sesion-cerrar' session.id %}" id="formCierre">
+                {% csrf_token %}
+
+                {% if error %}
+                <div class="alert alert-danger">{{ error }}</div>
+                {% endif %}
+
+                <div class="card mb-3">
+                    <div class="card-header d-flex justify-content-between align-items-center">
+                        <h5 class="mb-0"><i class="bi bi-lock me-2"></i>Cerrar Caja: {{ session.cash_register.nombre }}</h5>
+                        <button class="btn btn-outline-info btn-sm" type="button" id="btnToggle" title="Mostrar/ocultar columnas de control">
+                            <i class="bi bi-eye-slash me-1"></i>Columnas
+                        </button>
+                    </div>
+                    <div class="card-body p-0">
+                        <div class="table-responsive">
+                            <table class="table table-sm table-bordered mb-0" id="tablaCuadratura">
+                                <thead class="table-light">
+                                    <tr>
+                                        <th>Medio de pago</th>
+                                        <th class="text-end col-toggle" style="display: none;">Total sistema</th>
+                                        <th style="min-width: 140px;">Monto declarado</th>
+                                        <th class="text-end col-toggle" style="display: none;">Diferencia</th>
+                                        <th style="min-width: 180px;">Explicación</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    {% for pm in payment_methods %}
+                                    <tr>
+                                        <td><strong>{{ pm.nombre }}</strong></td>
+                                        <td class="text-end col-toggle sistema-val" style="display: none;">
+                                            {% with sistema=breakdown|get_item:pm.id %}
+                                            {% if sistema %}{{ sistema|currency }}{% else %}$0{% endif %}
+                                            {% endwith %}
+                                        </td>
+                                        <td>
+                                            <input type="number" class="form-control form-control-sm pm-declarado"
+                                                   name="pm_declarado_{{ pm.id }}"
+                                                   value="0"
+                                                   min="0" step="0.01"
+                                                   data-sistema="{% with s=breakdown|get_item:pm.id %}{{ s|default:'0' }}{% endwith %}">
+                                        </td>
+                                        <td class="text-end col-toggle pm-diferencia" style="display: none;">$0</td>
+                                        <td>
+                                            <input type="text" class="form-control form-control-sm pm-comentario"
+                                                   name="pm_comentario_{{ pm.id }}"
+                                                   placeholder="Obligatorio si hay diferencia"
+                                                   maxlength="255">
+                                        </td>
+                                    </tr>
+                                    {% endfor %}
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Resumen de cuadratura -->
+                <div class="card mb-3" id="resumenCard">
+                    <div class="card-header">
+                        <h6 class="mb-0">Resumen de cuadratura</h6>
+                    </div>
+                    <div class="card-body">
+                        <dl class="row mb-2">
+                            <dt class="col-sm-4">Saldo inicial</dt>
+                            <dd class="col-sm-8 text-end" id="resumen-apertura">{{ session.monto_apertura|currency }}</dd>
+                            <dt class="col-sm-4">+ Ingresos</dt>
+                            <dd class="col-sm-8 text-end text-success" id="resumen-ingresos">{{ summary.total_ingresos|currency }}</dd>
+                            <dt class="col-sm-4">- Egresos</dt>
+                            <dd class="col-sm-8 text-end text-danger" id="resumen-egresos">{{ summary.total_egresos|currency }}</dd>
+                            <dt class="col-sm-4">+ Ajustes</dt>
+                            <dd class="col-sm-8 text-end text-warning" id="resumen-ajustes">{{ summary.total_ajustes|currency }}</dd>
+                            <dt class="col-sm-4"><strong>= Saldo Teórico</strong></dt>
+                            <dd class="col-sm-8 text-end" id="resumen-teorico">{{ summary.total_esperado|currency }}</dd>
+                        </dl>
+                        <hr>
+                        <dl class="row mb-2">
+                            <dt class="col-sm-4"><strong>Total declarado</strong></dt>
+                            <dd class="col-sm-8 text-end fw-bold" id="resumen-declarado">$0</dd>
+                            <dt class="col-sm-4"><strong>± Diferencia general</strong></dt>
+                            <dd class="col-sm-8 text-end fw-bold" id="resumen-diferencia">$0</dd>
+                        </dl>
+                        <hr>
+                        <dl class="row mb-0">
+                            <dt class="col-sm-4"><strong>= Saldo real caja</strong></dt>
+                            <dd class="col-sm-8 text-end"><strong id="resumen-real">$0</strong></dd>
+                        </dl>
+                    </div>
+                </div>
+
+                <!-- Comentario general -->
+                <div class="mb-3">
+                    <label for="comentario_cierre" class="form-label">Comentario general (opcional)</label>
+                    <textarea class="form-control" id="comentario_cierre" name="comentario_cierre" rows="2"
+                              placeholder="Resumen o notas adicionales del cierre..."></textarea>
+                </div>
+
+                <div class="d-flex justify-content-between">
+                    <a href="{% url 'orders:sesion-detalle' session.id %}" class="btn btn-secondary">Cancelar</a>
+                    <button type="submit" class="btn btn-danger btn-lg"><i class="bi bi-search me-1"></i>Revisar Cierre</button>
+                </div>
+            </form>
+
+        </div>
+    </div>
+</div>
+
+<script>
+(function() {
+    var totalEsperado = parseFloat('{{ summary.total_esperado }}') || 0;
+    var inputs = document.querySelectorAll('.pm-declarado');
+
+    function recalcAll() {
+        var totalDeclarado = 0;
+        inputs.forEach(function(input) {
+            var sistema = parseFloat(input.dataset.sistema) || 0;
+            var declarado = parseFloat(input.value) || 0;
+            totalDeclarado += declarado;
+
+            var diff = declarado - sistema;
+            var row = input.closest('tr');
+            var diffCell = row.querySelector('.pm-diferencia');
+            var text = (diff >= 0 ? '$' : '-$') + Math.round(Math.abs(diff)).toLocaleString('es-CL');
+            diffCell.textContent = text;
+            diffCell.className = 'text-end pm-diferencia ' + (diff < 0 ? 'text-danger' : (diff > 0 ? 'text-success' : 'text-muted'));
+        });
+
+        document.getElementById('resumen-declarado').textContent = '$' + Math.round(totalDeclarado).toLocaleString('es-CL');
+
+        var diffGeneral = totalDeclarado - totalEsperado;
+        var diffElem = document.getElementById('resumen-diferencia');
+        var diffText = (diffGeneral >= 0 ? '+$' : '-$') + Math.round(Math.abs(diffGeneral)).toLocaleString('es-CL');
+        diffElem.textContent = diffText;
+        diffElem.className = 'col-sm-8 text-end fw-bold ' + (diffGeneral < 0 ? 'text-danger' : (diffGeneral > 0 ? 'text-success' : 'text-muted'));
+
+        var real = totalEsperado + diffGeneral;
+        document.getElementById('resumen-real').textContent = '$' + Math.round(real).toLocaleString('es-CL');
+    }
+
+    inputs.forEach(function(input) {
+        input.addEventListener('input', recalcAll);
+    });
+
+    // Toggle columnas de control (Total sistema y Diferencia)
+    var btnToggle = document.getElementById('btnToggle');
+    var cols = document.querySelectorAll('.col-toggle');
+    var colsVisible = false;
+
+    btnToggle.addEventListener('click', function() {
+        colsVisible = !colsVisible;
+        var display = colsVisible ? '' : 'none';
+        var icon = colsVisible ? 'bi-eye' : 'bi-eye-slash';
+        cols.forEach(function(el) { el.style.display = display; });
+        btnToggle.querySelector('i').className = 'bi ' + icon + ' me-1';
+    });
+
+    recalcAll();
+})();
+</script>
+{% endblock %}

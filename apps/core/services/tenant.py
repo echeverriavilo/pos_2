@@ -22,9 +22,14 @@ ROLE_PERMISSIONS = {
         'manage_inventory',
         'manage_users',
         'manage_tables',
+        'manage_cash_registers',
+        'open_cash_session',
+        'close_cash_session',
     ],
     'cajero': [
         'register_payment',
+        'open_cash_session',
+        'close_cash_session',
     ],
     'garzón': [
         'create_order',

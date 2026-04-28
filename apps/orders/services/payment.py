@@ -5,8 +5,9 @@ from django.db import transaction
 
 from apps.core.constants.actions import SystemActions
 from apps.core.services.auth import validate_tenant_access, validate_role_permission
-from apps.orders.models import Order, OrderItem, Transaction, TransactionItem
+from apps.orders.models import CashMovement, Order, OrderItem, Transaction, TransactionItem
 from apps.orders.selectors import TransactionSelector
+from apps.orders.selectors.cash_session import CashSessionSelector
 from apps.orders.services.order import OrderError, transition_order_state
 
 
@@ -220,6 +221,9 @@ def update_order_payment_state(*, user, order: Order) -> Order:
 def register_transaction(*, user, tenant, order: Order, payment_type: str, amount=None, order_items=None, cantidades=None, payment_method=None, tip_amount=None) -> Transaction:
     """Registra una transacción de pago respetando invariantes del dominio.
 
+    Requiere una CashSession abierta compatible con el flujo de la orden.
+    Crea un CashMovement tipo INGRESO vinculado a la sesión.
+
     Parámetros:
     - user: usuario que registra el pago.
     - tenant: tenant de la operación.
@@ -235,7 +239,7 @@ def register_transaction(*, user, tenant, order: Order, payment_type: str, amoun
     - Transaction creada.
 
     Efectos secundarios:
-    - Puede marcar ítems como pagados y cambiar el estado de la orden.
+    - Puede marcar ítems como pagados, cambiar el estado de la orden y crear CashMovement.
     """
     validate_tenant_access(user, tenant)
     validate_role_permission(user, SystemActions.REGISTER_PAYMENT)
@@ -243,6 +247,10 @@ def register_transaction(*, user, tenant, order: Order, payment_type: str, amoun
     with transaction.atomic():
         locked_order = Order.objects.for_tenant(tenant).select_for_update().get(pk=order.pk)
         _validate_order_for_payment(locked_order, tenant)
+
+        cash_session = CashSessionSelector.get_active_session_for_order(tenant, locked_order)
+        if cash_session is None:
+            raise TransactionError('No hay una sesión de caja abierta compatible con esta orden.')
 
         pending_consumo = TransactionSelector.total_pending(locked_order)
         if pending_consumo <= Decimal('0'):
@@ -301,6 +309,16 @@ def register_transaction(*, user, tenant, order: Order, payment_type: str, amoun
 
         if payment_type == Transaction.PaymentType.PRODUCTOS:
             apply_payment_to_items(transaction_record=transaction_record, order_items=locked_items)
+
+        CashMovement.objects.create(
+            tenant=tenant,
+            cash_session=cash_session,
+            transaction=transaction_record,
+            payment_method=payment_method,
+            tipo=CashMovement.MovementType.INGRESO,
+            monto=transaction_amount + tip_amount,
+            descripcion=f'Pago {payment_type} orden #{locked_order.pk}',
+        )
 
         update_order_payment_state(user=user, order=locked_order)
         return transaction_record

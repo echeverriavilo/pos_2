@@ -7,3 +7,6 @@ class SystemActions:
     MANAGE_USERS = "manage_users"
     MANAGE_TABLES = "manage_tables"
     MANAGE_DEVICES = "manage_devices"
+    MANAGE_CASH_REGISTERS = "manage_cash_registers"
+    OPEN_CASH_SESSION = "open_cash_session"
+    CLOSE_CASH_SESSION = "close_cash_session"

@@ -23,7 +23,8 @@ def _create_admin_user(tenant):
     role = Role.objects.create(tenant=tenant, name='administrador')
     all_perms = [
         'create_order', 'add_item', 'remove_item', 'register_payment',
-        'manage_inventory', 'manage_users', 'manage_tables', 'manage_devices'
+        'manage_inventory', 'manage_users', 'manage_tables', 'manage_devices',
+        'manage_cash_registers', 'open_cash_session',
     ]
     for perm_codename in all_perms:
         perm, _ = Permission.objects.get_or_create(codename=perm_codename)
@@ -34,6 +35,17 @@ def _create_admin_user(tenant):
 
 def _create_payment_method(tenant):
     return PaymentMethod.objects.create(tenant=tenant, nombre='Efectivo', orden=0, activo=True)
+
+
+def _open_cash_session_for_tenant(user, tenant, soporta_flujo_mesa=True, soporta_flujo_rapido=True):
+    """Abre una sesión de caja para un tenant. Retorna la CashSession."""
+    from apps.orders.services.cash_register import create_cash_register
+    from apps.orders.services.cash_session import open_cash_session
+    cr = create_cash_register(
+        user=user, tenant=tenant, nombre='Caja Test',
+        soporta_flujo_mesa=soporta_flujo_mesa, soporta_flujo_rapido=soporta_flujo_rapido,
+    )
+    return open_cash_session(user=user, tenant=tenant, cash_register_id=cr.pk, monto_apertura=Decimal('0'))
 
 
 @pytest.mark.django_db
@@ -91,6 +103,7 @@ def test_flujo_rapido_genera_comandas_al_confirmar():
         from apps.orders.models import Transaction
         
         payment_method = _create_payment_method(tenant)
+        _open_cash_session_for_tenant(user, tenant, soporta_flujo_mesa=False, soporta_flujo_rapido=True)
         register_transaction(
             user=user,
             tenant=tenant,

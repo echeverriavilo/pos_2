@@ -15,6 +15,8 @@ from apps.orders.services.order import (
 from apps.orders.services.payment import register_transaction, TransactionError
 from apps.orders.selectors.order_item import OrderItemSelector
 from apps.orders.selectors.transaction import TransactionSelector
+from apps.orders.services.cash_register import create_cash_register
+from apps.orders.services.cash_session import open_cash_session
 
 
 def _create_garzon_user(tenant):
@@ -30,7 +32,7 @@ def _create_garzon_user(tenant):
 def _create_cajero_user(tenant):
     user = CustomUser.objects.create_user(email=f'cajero@{tenant.slug}.com', password='test123')
     role = Role.objects.create(tenant=tenant, name='cajero')
-    for perm_codename in ['register_payment', 'manage_tables']:
+    for perm_codename in ['register_payment', 'manage_tables', 'manage_cash_registers', 'open_cash_session']:
         perm, _ = Permission.objects.get_or_create(codename=perm_codename)
         RolePermission.objects.get_or_create(role=role, permission=perm)
     Membership.objects.create(user=user, tenant=tenant, role=role)
@@ -53,6 +55,15 @@ def _create_payment_method(tenant):
     return PaymentMethod.objects.create(tenant=tenant, nombre='Efectivo', orden=0, activo=True)
 
 
+def _open_cash_session_for_tenant(user, tenant, soporta_flujo_mesa=True, soporta_flujo_rapido=True):
+    """Abre una sesión de caja para un tenant. Retorna la CashSession."""
+    cr = create_cash_register(
+        user=user, tenant=tenant, nombre='Caja Test',
+        soporta_flujo_mesa=soporta_flujo_mesa, soporta_flujo_rapido=soporta_flujo_rapido,
+    )
+    return open_cash_session(user=user, tenant=tenant, cash_register_id=cr.pk, monto_apertura=Decimal('0'))
+
+
 @pytest.mark.django_db
 def test_add_item_after_paid_creates_new_item():
     """Verifica que agregar un producto pagado crea un nuevo item en vez de modificar el existente."""
@@ -63,6 +74,7 @@ def test_add_item_after_paid_creates_new_item():
     product = _create_product(tenant=tenant, name='Cerveza', price='1000.00')
     order = create_order_for_table(user=user_garzon, table=table)
     payment_method = _create_payment_method(tenant)
+    _open_cash_session_for_tenant(user_cajero, tenant, soporta_flujo_mesa=True, soporta_flujo_rapido=False)
     
     item1 = add_or_update_item_in_order(user=user_garzon, order=order, product=product, cantidad=3)
     assert item1.cantidad == 3
@@ -91,6 +103,7 @@ def test_split_item_partial_quantity_payment():
     product = _create_product(tenant=tenant, name='Cerveza', price='1000.00')
     order = create_order_for_table(user=user_garzon, table=table)
     payment_method = _create_payment_method(tenant)
+    _open_cash_session_for_tenant(user_cajero, tenant, soporta_flujo_mesa=True, soporta_flujo_rapido=False)
     
     item = add_or_update_item_in_order(user=user_garzon, order=order, product=product, cantidad=5)
     assert item.cantidad == 5
@@ -190,6 +203,7 @@ def test_partial_payment_by_quantity_updates_pending():
     product = _create_product(tenant=tenant, name='Pizza', price='2000.00')
     order = create_order_for_table(user=user_garzon, table=table)
     payment_method = _create_payment_method(tenant)
+    _open_cash_session_for_tenant(user_cajero, tenant, soporta_flujo_mesa=True, soporta_flujo_rapido=False)
     
     item = add_or_update_item_in_order(user=user_garzon, order=order, product=product, cantidad=4)
     assert order.total_bruto == Decimal('8000.00')
@@ -221,6 +235,7 @@ def test_unpaid_items_excludes_split_residual():
     product = _create_product(tenant=tenant, name='Item', price='1000.00')
     order = create_order_for_table(user=user_garzon, table=table)
     payment_method = _create_payment_method(tenant)
+    _open_cash_session_for_tenant(user_cajero, tenant, soporta_flujo_mesa=True, soporta_flujo_rapido=False)
     
     item = add_or_update_item_in_order(user=user_garzon, order=order, product=product, cantidad=3)
     

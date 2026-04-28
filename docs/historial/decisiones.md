@@ -91,3 +91,33 @@
 - El orden de informacion en vista de mesas y cuenta es: Productos → Desglose → Pagos (tabla) → Pendiente de Pago.
 - La tabla de pagos muestra columnas: Tipo | Forma de pago | Consumo | Propina | Total.
 - El modal de pagos es para ingresar pagos, no para consultar historial. Se elimina el detalle de pagos realizados del modal.
+
+## 2026-04-28 - Apertura y cierre de caja (Tarea 013)
+
+- Los modelos CashRegister, CashSession y CashMovement se ubican en `apps/orders/`, junto a Transaction y PaymentMethod, dado que CashMovement tiene FK a Transaction y el flujo de pagos requiere CashSession abierta.
+- Solo se permite 1 sesion abierta por caja. Si ya existe una sesion ABIERTA para una caja, no se puede abrir otra.
+- Se permite cerrar una sesion con descuadre. Se registra `monto_cierre_declarado` y se calcula automaticamente `diferencia = monto_cierre_declarado - monto_cierre_calculado`. La diferencia queda registrada pero no bloquea el cierre.
+- No se permite reabrir una sesion cerrada. Es definitiva. Si hubo error, se crea una nueva sesion.
+- Los movimientos de caja son solo monetarios: INGRESO, EGRESO, AJUSTE. Se vinculan opcionalmente a una Transaction. No incluyen movimientos de inventario.
+- Los pagos registrados via `register_transaction()` generan automaticamente un CashMovement tipo INGRESO vinculado a la CashSession correspondiente.
+- No se puede registrar un pago sin una CashSession abierta para la caja compatible con el flujo de la orden.
+- Se agregan permisos: `manage_cash_registers`, `open_cash_session`, `close_cash_session`.
+
+## 2026-04-28 - Cuadratura detallada de caja (Tarea 013 — correcciones)
+
+- **Modelo CashCloseDetail**: cuadratura individual por medio de pago con `monto_sistema`, `monto_declarado`, `diferencia` y `comentario` por medio. Unique por (cash_session, payment_method).
+- **Comentario de diferencia por medio**: cada diferencia por medio de pago requiere un comentario especifico obligatorio en `CashCloseDetail.comentario`.
+- **CashMovement.payment_method**: FK a PaymentMethod para trazabilidad del medio de cada movimiento. Movimientos automaticos heredan `payment_method` de la transaccion. Movimientos manuales INGRESO/EGRESO se asignan automaticamente a "Efectivo". AJUSTE requiere seleccion explicita de medio.
+- **Signo de AJUSTE por radio**: el monto siempre es positivo. El signo se controla via radio "Credito (+)" / "Debito (-)" en la UI y la vista niega el monto si es debito antes de pasarlo al servicio. Eliminada la validacion de monto negativo en el servicio.
+- **Propina incluida en CashMovement automatico**: `monto = transaction_amount + tip_amount`. El `payment_method` se hereda de la transaccion.
+- **Flujo de cierre en 2 pasos**: (1) Pantalla de ingreso con boton "Revisar Cierre" → (2) Pantalla de revision readonly con botones "Modificar" y "Confirmar Cierre de Caja". Nueva vista `sesion_confirmar` (POST) que ejecuta `close_cash_session` solo al confirmar. Nueva URL `caja/sesion/<id>/confirmar/`.
+- **Historial de cierres**: nueva vista `sesiones_cerradas` en `caja/cierres/`. Lista todas las sesiones CERRADA con tabla: caja, abierto/cerrado por, fechas, montos, diferencia, acceso a detalle.
+- **Template tag `currency`**: ubicado en `apps/core/templatetags/currency.py` dentro de la app `apps.core` (registrada en INSTALLED_APPS). Filtros: `currency` (`$X.XXX`, sin decimales, separador de miles con punto) y `get_item` (acceso a diccionario por clave en templates).
+- **Columnas ocultas por defecto**: en la pantalla de cierre, "Total sistema" y "Diferencia" estan ocultas con boton toggle unificado "Columnas" (icono eye/eye-slash).
+- **Monto declarado por defecto = 0**: en la pantalla de ingreso de cierre, todos los inputs de monto declarado parten en 0. El cajero debe contar y declarar activamente.
+- **Cuadratura general derivada**: `monto_cierre_declarado` general se calcula como suma de los montos declarados por medio de pago (backend). No es un input separado.
+- **Apertura en breakdown Efectivo**: el `monto_apertura` de la sesion se suma al "Total sistema" del metodo Efectivo en el breakdown de cuadratura, tanto en pantalla como al crear CashCloseDetail.
+
+- El orden de informacion en vista de mesas y cuenta es: Productos → Desglose → Pagos (tabla) → Pendiente de Pago.
+- La tabla de pagos muestra columnas: Tipo | Forma de pago | Consumo | Propina | Total.
+- El modal de pagos es para ingresar pagos, no para consultar historial. Se elimina el detalle de pagos realizados del modal.

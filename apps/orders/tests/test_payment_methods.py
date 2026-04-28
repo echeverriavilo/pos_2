@@ -2,10 +2,21 @@ from decimal import Decimal
 
 import pytest
 
-from apps.core.models import Tenant
+from apps.core.models import CustomUser, Membership, Role, Tenant
 from apps.core.services.tenant import TenantService
 from apps.orders.models import PaymentMethod, Order, Transaction
 from apps.orders.services.payment import register_transaction, TransactionError
+from apps.orders.services.cash_register import create_cash_register
+from apps.orders.services.cash_session import open_cash_session
+
+
+def _open_cash_session_for_tenant(user, tenant, soporta_flujo_mesa=True, soporta_flujo_rapido=True):
+    """Abre una sesión de caja para un tenant. Retorna la CashSession."""
+    cr = create_cash_register(
+        user=user, tenant=tenant, nombre='Caja Test',
+        soporta_flujo_mesa=soporta_flujo_mesa, soporta_flujo_rapido=soporta_flujo_rapido,
+    )
+    return open_cash_session(user=user, tenant=tenant, cash_register_id=cr.pk, monto_apertura=Decimal('0'))
 
 
 @pytest.fixture
@@ -106,6 +117,7 @@ class TestPaymentMethodModel:
 
 class TestTransactionWithPaymentMethod:
     def test_transaction_requires_payment_method(self, tenant, user, order_with_items):
+        _open_cash_session_for_tenant(user, tenant, soporta_flujo_mesa=False, soporta_flujo_rapido=True)
         payment_method = PaymentMethod.objects.for_tenant(tenant).first()
         transaction = register_transaction(
             user=user,
@@ -119,6 +131,7 @@ class TestTransactionWithPaymentMethod:
         assert transaction.tip_amount == Decimal('0')
 
     def test_transaction_requires_active_payment_method(self, tenant, user, order_with_items):
+        _open_cash_session_for_tenant(user, tenant, soporta_flujo_mesa=False, soporta_flujo_rapido=True)
         payment_method = PaymentMethod.objects.for_tenant(tenant).first()
         payment_method.activo = False
         payment_method.save()
@@ -133,6 +146,7 @@ class TestTransactionWithPaymentMethod:
             )
 
     def test_transaction_payment_method_must_belong_to_tenant(self, tenant, tenant_b, user, order_with_items):
+        _open_cash_session_for_tenant(user, tenant, soporta_flujo_mesa=False, soporta_flujo_rapido=True)
         payment_method_b = PaymentMethod.objects.for_tenant(tenant_b).first()
         
         with pytest.raises(TransactionError, match='debe pertenecer al tenant'):
@@ -145,6 +159,7 @@ class TestTransactionWithPaymentMethod:
             )
 
     def test_transaction_without_payment_method_raises_error(self, tenant, user, order_with_items):
+        _open_cash_session_for_tenant(user, tenant, soporta_flujo_mesa=False, soporta_flujo_rapido=True)
         with pytest.raises(TransactionError, match='método de pago es obligatorio'):
             register_transaction(
                 user=user,
@@ -155,6 +170,7 @@ class TestTransactionWithPaymentMethod:
             )
 
     def test_transaction_tip_amount_cannot_be_negative(self, tenant, user, order_with_items):
+        _open_cash_session_for_tenant(user, tenant, soporta_flujo_mesa=False, soporta_flujo_rapido=True)
         payment_method = PaymentMethod.objects.for_tenant(tenant).first()
         
         with pytest.raises(TransactionError, match='no puede ser negativo'):
@@ -168,6 +184,7 @@ class TestTransactionWithPaymentMethod:
             )
 
     def test_transaction_tip_has_no_upper_limit(self, tenant, user, order_with_items):
+        _open_cash_session_for_tenant(user, tenant, soporta_flujo_mesa=False, soporta_flujo_rapido=True)
         payment_method = PaymentMethod.objects.for_tenant(tenant).first()
         
         transaction = register_transaction(
@@ -187,6 +204,8 @@ class TestTransactionSelectorWithTip:
         from apps.orders.services.order import create_order, add_or_update_item_in_order, recalculate_total
         from apps.catalog.models import Product, Category
         
+        _open_cash_session_for_tenant(user, tenant, soporta_flujo_mesa=False, soporta_flujo_rapido=True)
+
         order = create_order(user=user, tenant=tenant, tipo_flujo=Order.Flow.RAPIDO)
         category = Category.objects.create(tenant=tenant, nombre='Test')
         product = Product.objects.create(

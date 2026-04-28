@@ -9,6 +9,8 @@ from apps.dining.models import DiningTable
 from apps.orders.models import Order, OrderItem, Transaction, TransactionItem, PaymentMethod
 from apps.orders.selectors import TransactionSelector
 from apps.orders.services import TransactionError, add_or_update_item_in_order, create_order, register_transaction
+from apps.orders.services.cash_register import create_cash_register
+from apps.orders.services.cash_session import open_cash_session
 
 
 def _create_product(*, tenant, name, price, inventariable=False, stock='20.00'):
@@ -41,6 +43,15 @@ def _get_payment_method(tenant):
     return PaymentMethod.objects.for_tenant(tenant).filter(activo=True).first()
 
 
+def _open_cash_session_for_tenant(user, tenant, soporta_flujo_mesa=True, soporta_flujo_rapido=True):
+    """Abre una sesión de caja para un tenant. Retorna la CashSession."""
+    cr = create_cash_register(
+        user=user, tenant=tenant, nombre='Caja Test',
+        soporta_flujo_mesa=soporta_flujo_mesa, soporta_flujo_rapido=soporta_flujo_rapido,
+    )
+    return open_cash_session(user=user, tenant=tenant, cash_register_id=cr.pk, monto_apertura=Decimal('0'))
+
+
 @pytest.mark.django_db
 def test_register_total_payment_completes_table_order_and_releases_table():
     tenant = TenantService.create_tenant(slug='mesa-pagos', name='Mesa Pagos')
@@ -50,6 +61,7 @@ def test_register_total_payment_completes_table_order_and_releases_table():
     product = _create_product(tenant=tenant, name='Plato', price='3500.00')
     order = create_order(user=user_garzon, tenant=tenant, tipo_flujo=Order.Flow.MESA, table=table)
     add_or_update_item_in_order(user=user_garzon, order=order, product=product, cantidad=2)
+    _open_cash_session_for_tenant(user_cajero, tenant, soporta_flujo_mesa=True, soporta_flujo_rapido=False)
 
     transaction_record = register_transaction(
         user=user_cajero,
@@ -77,6 +89,7 @@ def test_register_partial_payment_sets_partial_state():
     product = _create_product(tenant=tenant, name='Jugo', price='2500.00')
     order = create_order(user=user_garzon, tenant=tenant, tipo_flujo=Order.Flow.MESA, table=table)
     add_or_update_item_in_order(user=user_garzon, order=order, product=product, cantidad=2)
+    _open_cash_session_for_tenant(user_cajero, tenant, soporta_flujo_mesa=True, soporta_flujo_rapido=False)
 
     register_transaction(
         user=user_cajero,
@@ -105,6 +118,7 @@ def test_product_payment_marks_only_selected_items_as_paid():
     order = create_order(user=user_garzon, tenant=tenant, tipo_flujo=Order.Flow.MESA, table=table)
     first_item = add_or_update_item_in_order(user=user_garzon, order=order, product=product1, cantidad=1)
     second_item = add_or_update_item_in_order(user=user_garzon, order=order, product=product2, cantidad=2)
+    _open_cash_session_for_tenant(user_cajero, tenant, soporta_flujo_mesa=True, soporta_flujo_rapido=False)
 
     transaction_record = register_transaction(
         user=user_cajero,
@@ -135,6 +149,7 @@ def test_product_payment_is_blocked_after_abono():
     product = _create_product(tenant=tenant, name='Cafe', price='1500.00')
     order = create_order(user=user_garzon, tenant=tenant, tipo_flujo=Order.Flow.MESA, table=table)
     item = add_or_update_item_in_order(user=user_garzon, order=order, product=product, cantidad=2)
+    _open_cash_session_for_tenant(user_cajero, tenant, soporta_flujo_mesa=True, soporta_flujo_rapido=False)
     register_transaction(
         user=user_cajero,
         tenant=tenant,
@@ -169,6 +184,7 @@ def test_quick_flow_full_first_payment_confirms_and_discounts_inventory():
     )
     order = create_order(user=user_garzon, tenant=tenant, tipo_flujo=Order.Flow.RAPIDO)
     item = add_or_update_item_in_order(user=user_garzon, order=order, product=product, cantidad=2)
+    _open_cash_session_for_tenant(user_cajero, tenant, soporta_flujo_mesa=False, soporta_flujo_rapido=True)
 
     transaction_record = register_transaction(
         user=user_cajero,
@@ -197,6 +213,7 @@ def test_payment_cannot_exceed_pending_total():
     product = _create_product(tenant=tenant, name='Sopa', price='2200.00')
     order = create_order(user=user_garzon, tenant=tenant, tipo_flujo=Order.Flow.MESA, table=table)
     add_or_update_item_in_order(user=user_garzon, order=order, product=product, cantidad=1)
+    _open_cash_session_for_tenant(user_cajero, tenant, soporta_flujo_mesa=True, soporta_flujo_rapido=False)
 
     with pytest.raises(TransactionError):
         register_transaction(
@@ -218,6 +235,7 @@ def test_paid_item_becomes_immutable():
     product = _create_product(tenant=tenant, name='Torta', price='1900.00')
     order = create_order(user=user_garzon, tenant=tenant, tipo_flujo=Order.Flow.MESA, table=table)
     item = add_or_update_item_in_order(user=user_garzon, order=order, product=product, cantidad=1)
+    _open_cash_session_for_tenant(user_cajero, tenant, soporta_flujo_mesa=True, soporta_flujo_rapido=False)
     register_transaction(
         user=user_cajero,
         tenant=tenant,
@@ -242,6 +260,7 @@ def test_multiple_partial_payments_accumulate():
     product = _create_product(tenant=tenant, name='Pizza', price='5000.00')
     order = create_order(user=user_garzon, tenant=tenant, tipo_flujo=Order.Flow.MESA, table=table)
     add_or_update_item_in_order(user=user_garzon, order=order, product=product, cantidad=1)
+    _open_cash_session_for_tenant(user_cajero, tenant, soporta_flujo_mesa=True, soporta_flujo_rapido=False)
 
     register_transaction(
         user=user_cajero,
@@ -289,6 +308,7 @@ def test_product_payment_blocked_in_quick_flow():
     product = _create_product(tenant=tenant, name='Burrito', price='3200.00')
     order = create_order(user=user_garzon, tenant=tenant, tipo_flujo=Order.Flow.RAPIDO)
     item = add_or_update_item_in_order(user=user_garzon, order=order, product=product, cantidad=1)
+    _open_cash_session_for_tenant(user_cajero, tenant, soporta_flujo_mesa=False, soporta_flujo_rapido=True)
 
     with pytest.raises(TransactionError):
         register_transaction(
@@ -310,6 +330,7 @@ def test_total_payment_direct_from_open_completes_immediately():
     product = _create_product(tenant=tenant, name='Ensalada', price='2800.00')
     order = create_order(user=user_garzon, tenant=tenant, tipo_flujo=Order.Flow.MESA, table=table)
     add_or_update_item_in_order(user=user_garzon, order=order, product=product, cantidad=1)
+    _open_cash_session_for_tenant(user_cajero, tenant, soporta_flujo_mesa=True, soporta_flujo_rapido=False)
 
     assert order.estado == Order.States.ABIERTO
     register_transaction(
@@ -334,6 +355,7 @@ def test_quick_flow_partial_payment_stays_in_partial_state():
     product = _create_product(tenant=tenant, name='Taco', price='2000.00')
     order = create_order(user=user_garzon, tenant=tenant, tipo_flujo=Order.Flow.RAPIDO)
     add_or_update_item_in_order(user=user_garzon, order=order, product=product, cantidad=2)
+    _open_cash_session_for_tenant(user_cajero, tenant, soporta_flujo_mesa=False, soporta_flujo_rapido=True)
 
     register_transaction(
         user=user_cajero,
@@ -368,6 +390,7 @@ def test_multitenancy_isolation_in_transactions():
 
     add_or_update_item_in_order(user=user_garzon_a, order=order_a, product=product_a, cantidad=1)
     add_or_update_item_in_order(user=user_garzon_b, order=order_b, product=product_b, cantidad=1)
+    _open_cash_session_for_tenant(user_cajero_a, tenant_a, soporta_flujo_mesa=True, soporta_flujo_rapido=False)
 
     register_transaction(
         user=user_cajero_a,
@@ -395,6 +418,7 @@ def test_cannot_pay_completed_or_cancelled_order():
     product = _create_product(tenant=tenant, name='Arepa', price='1200.00')
     order = create_order(user=user_garzon, tenant=tenant, tipo_flujo=Order.Flow.MESA, table=table)
     add_or_update_item_in_order(user=user_garzon, order=order, product=product, cantidad=1)
+    _open_cash_session_for_tenant(user_cajero, tenant, soporta_flujo_mesa=True, soporta_flujo_rapido=False)
 
     register_transaction(
         user=user_cajero,
@@ -427,6 +451,7 @@ def test_total_paid_never_exceeds_total_bruto():
     product = _create_product(tenant=tenant, name='Caldo', price='1000.00')
     order = create_order(user=user_garzon, tenant=tenant, tipo_flujo=Order.Flow.MESA, table=table)
     add_or_update_item_in_order(user=user_garzon, order=order, product=product, cantidad=1)
+    _open_cash_session_for_tenant(user_cajero, tenant, soporta_flujo_mesa=True, soporta_flujo_rapido=False)
 
     assert TransactionSelector.total_consumo_paid(order) == Decimal('0.00')
     assert TransactionSelector.total_pending(order) == Decimal('1000.00')

@@ -18,6 +18,8 @@ from apps.orders.services import (
     register_transaction,
     remove_item_from_order,
 )
+from apps.orders.services.cash_register import create_cash_register
+from apps.orders.services.cash_session import open_cash_session
 
 
 def _create_product(*, tenant, name, price, inventariable=False, stock='20.00'):
@@ -35,8 +37,9 @@ def _create_product(*, tenant, name, price, inventariable=False, stock='20.00'):
 def _create_cajero_user(tenant):
     user = CustomUser.objects.create_user(email=f'cajero@{tenant.slug}.com', password='test123')
     role = Role.objects.create(tenant=tenant, name='cajero')
-    perm, _ = Permission.objects.get_or_create(codename='register_payment')
-    RolePermission.objects.create(role=role, permission=perm)
+    for perm_codename in ['register_payment', 'manage_cash_registers', 'open_cash_session']:
+        perm, _ = Permission.objects.get_or_create(codename=perm_codename)
+        RolePermission.objects.create(role=role, permission=perm)
     Membership.objects.create(user=user, tenant=tenant, role=role)
     return user
 
@@ -53,6 +56,15 @@ def _create_garzon_user(tenant):
 
 def _create_payment_method(tenant, nombre='Efectivo', orden=0):
     return PaymentMethod.objects.create(tenant=tenant, nombre=nombre, orden=orden, activo=True)
+
+
+def _open_cash_session_for_tenant(user, tenant, soporta_flujo_mesa=True, soporta_flujo_rapido=True):
+    """Abre una sesión de caja para un tenant. Retorna la CashSession."""
+    cr = create_cash_register(
+        user=user, tenant=tenant, nombre='Caja Test',
+        soporta_flujo_mesa=soporta_flujo_mesa, soporta_flujo_rapido=soporta_flujo_rapido,
+    )
+    return open_cash_session(user=user, tenant=tenant, cash_register_id=cr.pk, monto_apertura=Decimal('0'))
 
 
 @pytest.mark.django_db
@@ -140,6 +152,7 @@ def test_payment_with_tip_completes_on_consumo_only():
     order = create_order(user=user_garzon, tenant=tenant, tipo_flujo=Order.Flow.MESA, table=table)
     add_or_update_item_in_order(user=user_garzon, order=order, product=product, cantidad=1)
     payment_method = _create_payment_method(tenant)
+    _open_cash_session_for_tenant(user_cajero, tenant, soporta_flujo_mesa=True, soporta_flujo_rapido=False)
 
     register_transaction(
         user=user_cajero,
@@ -167,6 +180,7 @@ def test_total_payment_records_tip_amount():
     order = create_order(user=user_garzon, tenant=tenant, tipo_flujo=Order.Flow.MESA, table=table)
     add_or_update_item_in_order(user=user_garzon, order=order, product=product, cantidad=1)
     payment_method = _create_payment_method(tenant)
+    _open_cash_session_for_tenant(user_cajero, tenant, soporta_flujo_mesa=True, soporta_flujo_rapido=False)
 
     transaction = register_transaction(
         user=user_cajero,
@@ -192,6 +206,7 @@ def test_abono_with_tip_records_tip_amount():
     order = create_order(user=user_garzon, tenant=tenant, tipo_flujo=Order.Flow.MESA, table=table)
     add_or_update_item_in_order(user=user_garzon, order=order, product=product, cantidad=1)
     payment_method = _create_payment_method(tenant)
+    _open_cash_session_for_tenant(user_cajero, tenant, soporta_flujo_mesa=True, soporta_flujo_rapido=False)
 
     register_transaction(
         user=user_cajero,
@@ -220,6 +235,7 @@ def test_multiple_abonos_complete_order_on_consumo():
     order = create_order(user=user_garzon, tenant=tenant, tipo_flujo=Order.Flow.MESA, table=table)
     add_or_update_item_in_order(user=user_garzon, order=order, product=product, cantidad=1)
     payment_method = _create_payment_method(tenant)
+    _open_cash_session_for_tenant(user_cajero, tenant, soporta_flujo_mesa=True, soporta_flujo_rapido=False)
 
     register_transaction(
         user=user_cajero,
@@ -264,6 +280,7 @@ def test_get_unpaid_items_excludes_paid_and_annulled():
     item2 = add_or_update_item_in_order(user=user_garzon, order=order, product=product2, cantidad=1)
     item3 = add_or_update_item_in_order(user=user_garzon, order=order, product=product3, cantidad=1)
     payment_method = _create_payment_method(tenant)
+    _open_cash_session_for_tenant(user_cajero, tenant, soporta_flujo_mesa=True, soporta_flujo_rapido=False)
 
     register_transaction(
         user=user_cajero,
@@ -295,6 +312,7 @@ def test_get_paid_items_returns_only_paid():
     item1 = add_or_update_item_in_order(user=user_garzon, order=order, product=product1, cantidad=1)
     item2 = add_or_update_item_in_order(user=user_garzon, order=order, product=product2, cantidad=1)
     payment_method = _create_payment_method(tenant)
+    _open_cash_session_for_tenant(user_cajero, tenant, soporta_flujo_mesa=True, soporta_flujo_rapido=False)
 
     register_transaction(
         user=user_cajero,
@@ -324,6 +342,7 @@ def test_items_paid_amount_returns_sum_of_product_transactions():
     item1 = add_or_update_item_in_order(user=user_garzon, order=order, product=product1, cantidad=1)
     item2 = add_or_update_item_in_order(user=user_garzon, order=order, product=product2, cantidad=1)
     payment_method = _create_payment_method(tenant)
+    _open_cash_session_for_tenant(user_cajero, tenant, soporta_flujo_mesa=True, soporta_flujo_rapido=False)
 
     register_transaction(
         user=user_cajero,
@@ -357,6 +376,7 @@ def test_suggested_tip_pending_returns_10_percent_of_pending():
     order = create_order(user=user_garzon, tenant=tenant, tipo_flujo=Order.Flow.MESA, table=table)
     add_or_update_item_in_order(user=user_garzon, order=order, product=product, cantidad=1)
     payment_method = _create_payment_method(tenant)
+    _open_cash_session_for_tenant(user_cajero, tenant, soporta_flujo_mesa=True, soporta_flujo_rapido=False)
 
     register_transaction(
         user=user_cajero,
@@ -383,6 +403,7 @@ def test_tip_is_optional_for_table_closure():
     order = create_order(user=user_garzon, tenant=tenant, tipo_flujo=Order.Flow.MESA, table=table)
     add_or_update_item_in_order(user=user_garzon, order=order, product=product, cantidad=1)
     payment_method = _create_payment_method(tenant)
+    _open_cash_session_for_tenant(user_cajero, tenant, soporta_flujo_mesa=True, soporta_flujo_rapido=False)
 
     register_transaction(
         user=user_cajero,

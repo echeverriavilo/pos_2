@@ -1,0 +1,59 @@
+{% extends "grastro/base.html" %}
+{% load currency %}
+
+{% block title %}Historial de Cierres - Gastropos{% endblock %}
+{% block header_title %}Historial de Cierres de Caja{% endblock %}
+
+{% block content %}
+<div class="container-fluid py-4">
+    <div class="d-flex justify-content-between align-items-center mb-3">
+        <h4 class="mb-0"><i class="bi bi-clock-history me-2"></i>Cierres realizados</h4>
+        <a href="{% url 'orders:caja-lista' %}" class="btn btn-outline-secondary btn-sm">
+            <i class="bi bi-arrow-left me-1"></i>Volver a cajas
+        </a>
+    </div>
+
+    <div class="table-responsive">
+        <table class="table table-hover">
+            <thead class="table-light">
+                <tr>
+                    <th>Caja</th>
+                    <th>Abierto por</th>
+                    <th>Apertura</th>
+                    <th>Cierre</th>
+                    <th>Cerrado por</th>
+                    <th class="text-end">Monto apertura</th>
+                    <th class="text-end">Monto declarado</th>
+                    <th class="text-end">Diferencia</th>
+                    <th></th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for s in sesiones %}
+                <tr>
+                    <td>{{ s.cash_register.nombre }}</td>
+                    <td>{{ s.opened_by.get_short_name }}</td>
+                    <td>{{ s.opened_at|date:"d/m/Y H:i" }}</td>
+                    <td>{{ s.closed_at|date:"d/m/Y H:i" }}</td>
+                    <td>{{ s.closed_by.get_short_name|default:"—" }}</td>
+                    <td class="text-end">{{ s.monto_apertura|currency }}</td>
+                    <td class="text-end">{{ s.monto_cierre_declarado|currency }}</td>
+                    <td class="text-end {% if s.diferencia < 0 %}text-danger{% elif s.diferencia > 0 %}text-success{% else %}text-muted{% endif %}">
+                        {{ s.diferencia|currency }}
+                    </td>
+                    <td>
+                        <a href="{% url 'orders:sesion-detalle' s.id %}" class="btn btn-sm btn-outline-primary">
+                            <i class="bi bi-eye me-1"></i>Ver
+                        </a>
+                    </td>
+                </tr>
+                {% empty %}
+                <tr>
+                    <td colspan="9" class="text-center text-muted">No hay cierres de caja registrados.</td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</div>
+{% endblock %}

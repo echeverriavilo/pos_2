@@ -288,24 +288,58 @@ Reglas:
 - `opened_at: datetime`
 - `closed_at: datetime nullable`
 - `estado: enum(ABIERTA, CERRADA)`
+- `monto_apertura: decimal (default 0)`
+- `monto_cierre_declarado: decimal nullable`
+- `diferencia: decimal nullable`
+- `comentario_cierre: text (blank)`
 
 Reglas:
 
 - no existen movimientos operativos sin una `CashSession` abierta;
-- cada apertura debe cerrarse con cuadratura.
+- cada apertura debe cerrarse con cuadratura;
+- la cuadratura se realiza por medio de pago via `CashCloseDetail`;
+- el `monto_apertura` se incluye en el total sistema del medio Efectivo.
 
 ### CashMovement
 
 - `tenant: FK(Tenant)`
 - `cash_session: FK(CashSession)`
 - `transaction: FK(Transaction, nullable)`
+- `payment_method: FK(PaymentMethod, nullable)`
 - `tipo: enum(INGRESO, EGRESO, AJUSTE)`
 - `monto: decimal`
+- `descripcion: string (blank)`
+- `created_at: datetime`
+
+Reglas:
+
+- movimientos manuales INGRESO/EGRESO se asignan automaticamente al PaymentMethod "Efectivo";
+- movimientos manuales AJUSTE requieren seleccion explicita de medio de pago;
+- movimientos automaticos (pago) heredan `payment_method` de la transaccion;
+- el monto de movimientos automaticos incluye `transaction.monto + transaction.tip_amount`;
+- la descripcion es obligatoria para movimientos manuales.
 
 ### Dispositivo
 
 - `tenant: FK`
 - `nombre: string`
+
+### CashCloseDetail
+
+- `tenant: FK(Tenant)`
+- `cash_session: FK(CashSession)`
+- `payment_method: FK(PaymentMethod)`
+- `monto_sistema: decimal` — total calculado por el sistema para este medio en la sesion
+- `monto_declarado: decimal` — monto fisico contado por el cajero para este medio
+- `diferencia: decimal` — `monto_declarado - monto_sistema`
+- `comentario: text (blank)` — explicacion de la diferencia (obligatorio si diferencia != 0)
+- `created_at: datetime`
+
+Reglas:
+
+- unico por combinacion (cash_session, payment_method);
+- se crea automaticamente al confirmar el cierre de sesion;
+- diferencia != 0 requiere `comentario` obligatorio.
 
 ### KitchenBarStation
 
@@ -395,7 +429,11 @@ Se considera orden activa una orden en estado:
 - cada tenant puede tener multiples cajas;
 - cada caja puede soportar flujo mesa, flujo rapido o ambos;
 - toda operacion monetaria debe quedar asociada a una apertura de caja activa;
-- cada apertura debe cerrarse con cuadratura.
+- cada apertura debe cerrarse con cuadratura;
+- la cuadratura se realiza por medio de pago: se compara el total sistema con el monto declarado para cada PaymentMethod;
+- el `monto_apertura` de la sesion se incluye en el "Total sistema" del medio Efectivo;
+- el cierre se confirma en 2 pasos: revision de datos → confirmacion irreversible;
+- el historial de cierres es consultable desde la gestion de cajas.
 
 ### Inventario
 
@@ -478,8 +516,12 @@ Tipos:
 
 1. El usuario abre una caja para un turno.
 2. Todo pago o movimiento monetario se asocia a esa apertura.
-3. La operacion del turno queda agrupada por caja y sesion.
-4. El turno se cierra con cuadratura y resumen de movimientos.
+3. Los movimientos manuales se registran con medio de pago (Efectivo para INGRESO/EGRESO, seleccionable para AJUSTE). El signo de los AJUSTE se controla como Credito (+) o Debito (-).
+4. La operacion del turno queda agrupada por caja y sesion.
+5. Al cierre, el usuario ingresa el monto contado para cada medio de pago configurado en el sistema (por defecto en 0).
+6. El sistema muestra una pantalla de revision con la formula: Saldo Inicial + Ingresos - Egresos +/- Ajustes = Saldo Teorico; Total Declarado; Diferencia General; Saldo Real.
+7. El usuario confirma el cierre, creando registros `CashCloseDetail` por cada medio de pago con sus diferencias y comentarios individuales obligatorios cuando hay descuadre.
+8. El cierre queda registrado y es consultable en el historial de cierres.
 
 ## 9. Roles y permisos
 

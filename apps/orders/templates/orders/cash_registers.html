@@ -1,0 +1,118 @@
+{% extends "grastro/base.html" %}
+
+{% block title %}Cajas - Gastropos{% endblock %}
+{% block header_title %}Gestión de Cajas{% endblock %}
+
+{% block content %}
+<div class="container-fluid py-4">
+    <div class="d-flex justify-content-between align-items-center mb-3">
+        <h4 class="mb-0"><i class="bi bi-cash-stack me-2"></i>Cajas</h4>
+        <div class="d-flex gap-2">
+            <a href="{% url 'orders:sesiones-cerradas' %}" class="btn btn-outline-info btn-sm">
+                <i class="bi bi-clock-history me-1"></i>Historial de cierres
+            </a>
+            <button class="btn btn-primary" data-bs-toggle="modal" data-bs-target="#modalNuevaCaja">
+                <i class="bi bi-plus-circle me-1"></i>Nueva Caja
+            </button>
+        </div>
+    </div>
+
+    <!-- Sesión activa -->
+    {% for pk, session in active_sessions.items %}
+    <div class="alert alert-success d-flex justify-content-between align-items-center mb-3">
+        <div>
+            <i class="bi bi-check-circle me-2"></i>
+            <strong>Sesión abierta:</strong> {{ session.cash_register.nombre }} — Aperturada por {{ session.opened_by.get_short_name }} el {{ session.opened_at|date:"d/m/Y H:i" }}
+        </div>
+        <a href="{% url 'orders:sesion-detalle' session.id %}" class="btn btn-sm btn-outline-success">
+            <i class="bi bi-eye me-1"></i>Ver sesión
+        </a>
+    </div>
+    {% endfor %}
+
+    {% if not active_sessions %}
+    <div class="mb-3">
+        <a href="{% url 'orders:sesion-abrir' %}" class="btn btn-outline-success">
+            <i class="bi bi-door-open me-1"></i>Abrir Sesión de Caja
+        </a>
+    </div>
+    {% endif %}
+
+    <!-- Lista de cajas -->
+    <div class="table-responsive">
+        <table class="table table-hover">
+            <thead class="table-light">
+                <tr>
+                    <th>Nombre</th>
+                    <th>Flujo Mesa</th>
+                    <th>Flujo Rápido</th>
+                    <th>Estado</th>
+                    <th>Acciones</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for cr in cash_registers %}
+                <tr>
+                    <td>{{ cr.nombre }}</td>
+                    <td>{% if cr.soporta_flujo_mesa %}<i class="bi bi-check-circle-fill text-success"></i>{% else %}<i class="bi bi-x-circle text-danger"></i>{% endif %}</td>
+                    <td>{% if cr.soporta_flujo_rapido %}<i class="bi bi-check-circle-fill text-success"></i>{% else %}<i class="bi bi-x-circle text-danger"></i>{% endif %}</td>
+                    <td>{% if cr.activo %}<span class="badge bg-success">Activa</span>{% else %}<span class="badge bg-secondary">Inactiva</span>{% endif %}</td>
+                    <td>
+                        <a href="{% url 'orders:caja-editar' cr.id %}" class="btn btn-sm btn-outline-primary">
+                            <i class="bi bi-pencil"></i>
+                        </a>
+                        <form method="post" action="{% url 'orders:caja-toggle-activa' cr.id %}" style="display:inline;">
+                            {% csrf_token %}
+                            <input type="hidden" name="activo" value="{% if cr.activo %}false{% else %}true{% endif %}">
+                            <button type="submit" class="btn btn-sm btn-outline-{% if cr.activo %}warning{% else %}success{% endif %}">
+                                {% if cr.activo %}<i class="bi bi-pause-circle"></i>{% else %}<i class="bi bi-play-circle"></i>{% endif %}
+                            </button>
+                        </form>
+                    </td>
+                </tr>
+                {% empty %}
+                <tr>
+                    <td colspan="5" class="text-center text-muted">No hay cajas registradas.</td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</div>
+
+<!-- Modal Nueva Caja -->
+<div class="modal fade" id="modalNuevaCaja" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <form method="post" action="{% url 'orders:caja-crear' %}">
+                {% csrf_token %}
+                <div class="modal-header">
+                    <h5 class="modal-title">Nueva Caja</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                </div>
+                <div class="modal-body">
+                    {% if error %}
+                    <div class="alert alert-danger">{{ error }}</div>
+                    {% endif %}
+                    <div class="mb-3">
+                        <label for="nombre" class="form-label">Nombre de la caja</label>
+                        <input type="text" class="form-control" id="nombre" name="nombre" required>
+                    </div>
+                    <div class="form-check mb-2">
+                        <input class="form-check-input" type="checkbox" id="soporta_flujo_mesa" name="soporta_flujo_mesa" checked>
+                        <label class="form-check-label" for="soporta_flujo_mesa">Soporta flujo con mesa</label>
+                    </div>
+                    <div class="form-check">
+                        <input class="form-check-input" type="checkbox" id="soporta_flujo_rapido" name="soporta_flujo_rapido" checked>
+                        <label class="form-check-label" for="soporta_flujo_rapido">Soporta flujo rápido</label>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancelar</button>
+                    <button type="submit" class="btn btn-primary">Crear Caja</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+{% endblock %}

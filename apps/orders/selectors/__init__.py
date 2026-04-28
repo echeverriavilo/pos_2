@@ -3,6 +3,8 @@ from .order_item import OrderItemSelector
 from .transaction import TransactionSelector
 from .dispositivo import DispositivoSelector, ConfiguracionDispositivoSelector
 from .comanda import ComandaSelector
+from .cash_register import CashRegisterSelector
+from .cash_session import CashSessionSelector
 
 __all__ = [
     'OrderSelector',
@@ -11,4 +13,6 @@ __all__ = [
     'DispositivoSelector',
     'ConfiguracionDispositivoSelector',
     'ComandaSelector',
+    'CashRegisterSelector',
+    'CashSessionSelector',
 ]

@@ -1,5 +1,17 @@
 from django.urls import path
 from . import views
+from .views_cash import (
+    caja_lista,
+    caja_crear,
+    caja_editar,
+    caja_toggle_activa,
+    sesion_abrir,
+    sesion_detalle,
+    sesion_cerrar,
+    sesion_confirmar,
+    sesion_movimiento,
+    sesiones_cerradas,
+)
 from .views import TerminalVentasView
 
 app_name = 'orders'
@@ -20,4 +32,14 @@ urlpatterns = [
     path('mesa/<int:table_id>/liberar/', views.mesa_liberar_mesa, name='mesa-liberar'),
     path('orden/<int:order_id>/procesar-pago/', views.orden_procesar_pago, name='orden-procesar-pago'),
     path('orden/<int:order_id>/pre-cuenta/', views.orden_pre_cuenta, name='orden-pre-cuenta'),
+    path('caja/', caja_lista, name='caja-lista'),
+    path('caja/crear/', caja_crear, name='caja-crear'),
+    path('caja/<int:pk>/editar/', caja_editar, name='caja-editar'),
+    path('caja/<int:pk>/toggle/', caja_toggle_activa, name='caja-toggle-activa'),
+    path('caja/sesion/abrir/', sesion_abrir, name='sesion-abrir'),
+    path('caja/sesion/<int:session_id>/', sesion_detalle, name='sesion-detalle'),
+    path('caja/sesion/<int:session_id>/cerrar/', sesion_cerrar, name='sesion-cerrar'),
+    path('caja/sesion/<int:session_id>/confirmar/', sesion_confirmar, name='sesion-confirmar'),
+    path('caja/sesion/<int:session_id>/movimiento/', sesion_movimiento, name='sesion-movimiento'),
+    path('caja/cierres/', sesiones_cerradas, name='sesiones-cerradas'),
 ]

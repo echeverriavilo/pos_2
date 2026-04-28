@@ -1,0 +1,278 @@
+{% extends "grastro/base.html" %}
+{% load currency %}
+
+{% block title %}Sesión de Caja - Gastropos{% endblock %}
+{% block header_title %}Sesión: {{ session.cash_register.nombre }}{% endblock %}
+
+{% block content %}
+<div class="container-fluid py-4">
+    <div class="row mb-3">
+        <div class="col-12">
+            <div class="d-flex flex-wrap justify-content-between align-items-center gap-2">
+                <h5 class="mb-0">
+                    <i class="bi bi-{% if session.estado == 'ABIERTA' %}door-open{% else %}lock{% endif %} me-2"></i>
+                    {{ session.cash_register.nombre }}
+                    <span class="badge bg-{% if session.estado == 'ABIERTA' %}success{% else %}secondary{% endif %} ms-2">{{ session.get_estado_display }}</span>
+                </h5>
+                <div class="d-flex flex-wrap gap-2">
+                    {% if session.estado == 'ABIERTA' %}
+                    <a href="{% url 'orders:sesion-cerrar' session.id %}" class="btn btn-danger btn-sm">
+                        <i class="bi bi-lock me-1"></i>Cerrar Caja
+                    </a>
+                    <button class="btn btn-outline-primary btn-sm" data-bs-toggle="modal" data-bs-target="#modalMovimiento">
+                        <i class="bi bi-plus-circle me-1"></i>Movimiento Manual
+                    </button>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Info de sesión -->
+    <div class="row mb-3">
+        <div class="col-md-6">
+            <div class="card">
+                <div class="card-body">
+                    <h6 class="card-title">Información de Sesión</h6>
+                    <dl class="row mb-0">
+                        <dt class="col-sm-5">Aperturada por</dt>
+                        <dd class="col-sm-7">{{ session.opened_by.get_short_name }}</dd>
+                        <dt class="col-sm-5">Fecha apertura</dt>
+                        <dd class="col-sm-7">{{ session.opened_at|date:"d/m/Y H:i" }}</dd>
+                        {% if session.closed_by %}
+                        <dt class="col-sm-5">Cerrada por</dt>
+                        <dd class="col-sm-7">{{ session.closed_by.get_short_name }}</dd>
+                        <dt class="col-sm-5">Fecha cierre</dt>
+                        <dd class="col-sm-7">{{ session.closed_at|date:"d/m/Y H:i" }}</dd>
+                        {% endif %}
+                        <dt class="col-sm-5">Monto apertura</dt>
+                        <dd class="col-sm-7">{{ session.monto_apertura|currency }}</dd>
+                        {% if session.monto_cierre_declarado is not None %}
+                        <dt class="col-sm-5">Monto cierre declarado</dt>
+                        <dd class="col-sm-7">{{ session.monto_cierre_declarado|currency }}</dd>
+                        {% endif %}
+                        {% if session.diferencia is not None %}
+                        <dt class="col-sm-5">Diferencia</dt>
+                        <dd class="col-sm-7">
+                            <span class="{% if session.diferencia < 0 %}text-danger{% elif session.diferencia > 0 %}text-success{% else %}text-muted{% endif %}">
+                                {% if session.diferencia > 0 %}+{% endif %}{{ session.diferencia|currency }}
+                            </span>
+                        </dd>
+                        {% endif %}
+                        {% if session.comentario_cierre %}
+                        <dt class="col-sm-5">Comentario cierre</dt>
+                        <dd class="col-sm-7">{{ session.comentario_cierre }}</dd>
+                        {% endif %}
+                    </dl>
+                </div>
+            </div>
+        </div>
+        {% if summary %}
+        <div class="col-md-6">
+            <div class="card">
+                <div class="card-body">
+                    <h6 class="card-title">Resumen de Cuadratura</h6>
+                    <dl class="row mb-0">
+                        <dt class="col-sm-7">Monto apertura</dt>
+                        <dd class="col-sm-5 text-end">{{ summary.monto_apertura|currency }}</dd>
+                        <dt class="col-sm-7">+ Ingresos</dt>
+                        <dd class="col-sm-5 text-end text-success">{{ summary.total_ingresos|currency }}</dd>
+                        <dt class="col-sm-7">- Egresos</dt>
+                        <dd class="col-sm-5 text-end text-danger">{{ summary.total_egresos|currency }}</dd>
+                        <dt class="col-sm-7">+ Ajustes</dt>
+                        <dd class="col-sm-5 text-end text-warning">{{ summary.total_ajustes|currency }}</dd>
+                        <dt class="col-sm-7"><strong>Total esperado</strong></dt>
+                        <dd class="col-sm-5 text-end"><strong>{{ summary.total_esperado|currency }}</strong></dd>
+                        {% if summary.diferencia is not None %}
+                        <dt class="col-sm-7"><strong>Diferencia</strong></dt>
+                        <dd class="col-sm-5 text-end">
+                            <strong class="{% if summary.diferencia < 0 %}text-danger{% elif summary.diferencia > 0 %}text-success{% else %}text-muted{% endif %}">
+                                {% if summary.diferencia > 0 %}+{% endif %}{{ summary.diferencia|currency }}
+                            </strong>
+                        </dd>
+                        {% endif %}
+                    </dl>
+                </div>
+            </div>
+        </div>
+        {% endif %}
+    </div>
+
+    <!-- Cuadratura por medio de pago (si está cerrada) -->
+    {% if close_details %}
+    <div class="card mb-3">
+        <div class="card-header">
+            <h6 class="mb-0">Cuadratura por medio de pago</h6>
+        </div>
+        <div class="table-responsive">
+            <table class="table table-sm table-bordered mb-0">
+                <thead class="table-light">
+                    <tr>
+                        <th>Medio de pago</th>
+                        <th class="text-end">Total sistema</th>
+                        <th class="text-end">Monto declarado</th>
+                        <th class="text-end">Diferencia</th>
+                        <th>Comentario</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for detail in close_details %}
+                    <tr>
+                        <td>{{ detail.payment_method.nombre }}</td>
+                        <td class="text-end">{{ detail.monto_sistema|currency }}</td>
+                        <td class="text-end">{{ detail.monto_declarado|currency }}</td>
+                        <td class="text-end {% if detail.diferencia < 0 %}text-danger{% elif detail.diferencia > 0 %}text-success{% else %}text-muted{% endif %}">
+                            {{ detail.diferencia|currency }}
+                        </td>
+                        <td>{{ detail.comentario|default:"—" }}</td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+    {% endif %}
+
+    <!-- Movimientos -->
+    <div class="card">
+        <div class="card-header d-flex flex-wrap justify-content-between align-items-center gap-2">
+            <h6 class="mb-0">Movimientos</h6>
+            <div class="btn-group btn-group-sm" role="group">
+                <a href="?tipo=" class="btn btn-outline-secondary {% if not request.GET.tipo %}active{% endif %}">Todos</a>
+                <a href="?tipo=INGRESO" class="btn btn-outline-success {% if request.GET.tipo == 'INGRESO' %}active{% endif %}">Ingreso</a>
+                <a href="?tipo=EGRESO" class="btn btn-outline-danger {% if request.GET.tipo == 'EGRESO' %}active{% endif %}">Egreso</a>
+                <a href="?tipo=AJUSTE" class="btn btn-outline-warning {% if request.GET.tipo == 'AJUSTE' %}active{% endif %}">Ajuste</a>
+            </div>
+        </div>
+        <div class="table-responsive">
+            <table class="table table-sm table-hover mb-0">
+                <thead class="table-light">
+                    <tr>
+                        <th>Fecha</th>
+                        <th>Tipo</th>
+                        <th>Medio</th>
+                        <th>Descripción</th>
+                        <th>Monto</th>
+                        <th>Transacción</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for mov in movements %}
+                    <tr>
+                        <td>{{ mov.created_at|date:"d/m/Y H:i" }}</td>
+                        <td>
+                            <span class="badge bg-{% if mov.tipo == 'INGRESO' %}success{% elif mov.tipo == 'EGRESO' %}danger{% else %}warning{% endif %}">
+                                {{ mov.get_tipo_display }}
+                            </span>
+                        </td>
+                        <td>{% if mov.payment_method %}{{ mov.payment_method.nombre }}{% else %}—{% endif %}</td>
+                        <td>{{ mov.descripcion }}</td>
+                        <td class="{% if mov.tipo == 'EGRESO' %}text-danger{% else %}text-success{% endif %}">
+                            {% if mov.tipo == 'EGRESO' %}-{% endif %}{{ mov.monto|currency }}
+                        </td>
+                        <td>{% if mov.transaction %}#{{ mov.transaction.id }}{% else %}—{% endif %}</td>
+                    </tr>
+                    {% empty %}
+                    <tr>
+                        <td colspan="6" class="text-center text-muted">No hay movimientos registrados.</td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>
+
+<!-- Modal Movimiento Manual -->
+{% if session.estado == 'ABIERTA' %}
+<div class="modal fade" id="modalMovimiento" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <form method="post" action="{% url 'orders:sesion-movimiento' session.id %}">
+                {% csrf_token %}
+                <div class="modal-header">
+                    <h5 class="modal-title">Registrar Movimiento Manual</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                </div>
+                <div class="modal-body">
+                    <div class="mb-3">
+                        <label for="tipo" class="form-label">Tipo de movimiento</label>
+                        <select class="form-select" id="tipo" name="tipo" required>
+                            <option value="INGRESO">Ingreso (efectivo)</option>
+                            <option value="EGRESO">Egreso (efectivo)</option>
+                            <option value="AJUSTE">Ajuste (cualquier medio)</option>
+                        </select>
+                        <div class="form-text" id="tipo-ayuda">Entrada de efectivo a caja</div>
+                    </div>
+                    <div class="mb-3" id="div-payment-method" style="display: none;">
+                        <label for="payment_method_id" class="form-label">Medio de pago</label>
+                        <select class="form-select" id="payment_method_id" name="payment_method_id">
+                            {% for pm in payment_methods %}
+                            <option value="{{ pm.id }}">{{ pm.nombre }}</option>
+                            {% endfor %}
+                        </select>
+                    </div>
+                    <div class="mb-3" id="div-signo" style="display: none;">
+                        <label class="form-label">Tipo de ajuste</label>
+                        <div class="form-check">
+                            <input class="form-check-input" type="radio" name="signo_ajuste" id="signo_positivo" value="positivo" checked>
+                            <label class="form-check-label" for="signo_positivo"><span class="text-success">Crédito (+)</span></label>
+                        </div>
+                        <div class="form-check">
+                            <input class="form-check-input" type="radio" name="signo_ajuste" id="signo_negativo" value="negativo">
+                            <label class="form-check-label" for="signo_negativo"><span class="text-danger">Débito (-)</span></label>
+                        </div>
+                    </div>
+                    <div class="mb-3">
+                        <label for="monto" class="form-label">Monto</label>
+                        <input type="number" class="form-control" id="monto" name="monto" min="0.01" step="0.01" required>
+                    </div>
+                    <div class="mb-3">
+                        <label for="descripcion" class="form-label">Descripción</label>
+                        <input type="text" class="form-control" id="descripcion" name="descripcion" required>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancelar</button>
+                    <button type="submit" class="btn btn-primary">Registrar</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+{% endif %}
+
+<script>
+(function() {
+    const tipoSelect = document.getElementById('tipo');
+    const tipoAyuda = document.getElementById('tipo-ayuda');
+    const divPm = document.getElementById('div-payment-method');
+    const pmSelect = document.getElementById('payment_method_id');
+    const divSigno = document.getElementById('div-signo');
+
+    const ayudas = {
+        'INGRESO': 'Entrada de efectivo a caja',
+        'EGRESO': 'Retiro de efectivo de caja',
+        'AJUSTE': 'Ajuste contable por cualquier medio de pago'
+    };
+
+    if (tipoSelect && tipoAyuda) {
+        function updateUI() {
+            const tipo = tipoSelect.value;
+            tipoAyuda.textContent = ayudas[tipo] || '';
+            if (tipo === 'AJUSTE') {
+                divPm.style.display = 'block';
+                divSigno.style.display = 'block';
+                if (pmSelect) pmSelect.required = true;
+            } else {
+                divPm.style.display = 'none';
+                divSigno.style.display = 'none';
+                if (pmSelect) pmSelect.required = false;
+            }
+        }
+        tipoSelect.addEventListener('change', updateUI);
+        updateUI();
+    }
+})();
+</script>
+{% endblock %}

@@ -1,0 +1,146 @@
+{% extends "grastro/base.html" %}
+{% load currency %}
+
+{% block title %}Confirmar Cierre - Gastropos{% endblock %}
+{% block header_title %}Confirmar Cierre de Caja{% endblock %}
+
+{% block content %}
+<div class="container-fluid py-4">
+    <div class="row justify-content-center">
+        <div class="col-lg-10">
+
+            {% if error %}
+            <div class="alert alert-danger">{{ error }}</div>
+            {% endif %}
+
+            <div class="card mb-3">
+                <div class="card-header d-flex justify-content-between align-items-center">
+                    <h5 class="mb-0"><i class="bi bi-check-circle me-2"></i>Revisión: {{ session.cash_register.nombre }}</h5>
+                    <button class="btn btn-outline-info btn-sm" type="button" id="btnToggle" title="Mostrar/ocultar columnas de control">
+                        <i class="bi bi-eye-slash me-1"></i>Columnas
+                    </button>
+                </div>
+                <div class="card-body p-0">
+                    <div class="table-responsive">
+                        <table class="table table-sm table-bordered mb-0">
+                            <thead class="table-light">
+                                <tr>
+                                    <th>Medio de pago</th>
+                                    <th class="text-end col-toggle" style="display: none;">Total sistema</th>
+                                    <th class="text-end">Monto declarado</th>
+                                    <th class="text-end col-toggle" style="display: none;">Diferencia</th>
+                                    <th>Explicación</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for pm in payment_methods %}
+                                {% with sistema=breakdown|get_item:pm.id %}
+                                {% with declarado=payment_declared|get_item:pm.id %}
+                                {% with diff=payment_diffs|get_item:pm.id %}
+                                <tr>
+                                    <td><strong>{{ pm.nombre }}</strong></td>
+                                    <td class="text-end col-toggle" style="display: none;">
+                                        {% if sistema %}{{ sistema|currency }}{% else %}$0{% endif %}
+                                    </td>
+                                    <td class="text-end">{{ declarado|default:'0'|currency }}</td>
+                                    <td class="text-end col-toggle {% if diff < 0 %}text-danger{% elif diff > 0 %}text-success{% else %}text-muted{% endif %}" style="display: none;">
+                                        {{ diff|currency }}
+                                    </td>
+                                    <td>{{ payment_comentarios|get_item:pm.id|default:"—" }}</td>
+                                </tr>
+                                {% endwith %}
+                                {% endwith %}
+                                {% endwith %}
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Resumen de cuadratura -->
+            <div class="card mb-3">
+                <div class="card-header">
+                    <h6 class="mb-0">Resumen de cuadratura</h6>
+                </div>
+                <div class="card-body">
+                    <dl class="row mb-2">
+                        <dt class="col-sm-4">Saldo inicial</dt>
+                        <dd class="col-sm-8 text-end">{{ session.monto_apertura|currency }}</dd>
+                        <dt class="col-sm-4">+ Ingresos</dt>
+                        <dd class="col-sm-8 text-end text-success">{{ summary.total_ingresos|currency }}</dd>
+                        <dt class="col-sm-4">- Egresos</dt>
+                        <dd class="col-sm-8 text-end text-danger">{{ summary.total_egresos|currency }}</dd>
+                        <dt class="col-sm-4">+ Ajustes</dt>
+                        <dd class="col-sm-8 text-end text-warning">{{ summary.total_ajustes|currency }}</dd>
+                        <dt class="col-sm-4"><strong>= Saldo Teórico</strong></dt>
+                        <dd class="col-sm-8 text-end"><strong>{{ summary.total_esperado|currency }}</strong></dd>
+                    </dl>
+                    <hr>
+                    <dl class="row mb-2">
+                        <dt class="col-sm-4"><strong>Total declarado</strong></dt>
+                        <dd class="col-sm-8 text-end fw-bold">{{ total_declarado|currency }}</dd>
+                        <dt class="col-sm-4"><strong>± Diferencia general</strong></dt>
+                        <dd class="col-sm-8 text-end fw-bold {% if dif_general < 0 %}text-danger{% elif dif_general > 0 %}text-success{% endif %}">
+                            {{ dif_general|currency }}
+                        </dd>
+                    </dl>
+                    <hr>
+                    <dl class="row mb-0">
+                        <dt class="col-sm-4"><strong>= Saldo real caja</strong></dt>
+                        <dd class="col-sm-8 text-end"><strong>{{ saldo_real|currency }}</strong></dd>
+                    </dl>
+                </div>
+            </div>
+
+            <!-- Comentario general -->
+            {% if comentario_cierre %}
+            <div class="mb-3">
+                <label class="form-label text-muted">Comentario general</label>
+                <p class="text-muted">{{ comentario_cierre }}</p>
+            </div>
+            {% endif %}
+
+            <div class="alert alert-warning">
+                <i class="bi bi-exclamation-triangle me-2"></i>
+                <strong>Esta acción es irreversible.</strong> Una vez confirmado, los montos declarados quedarán registrados y la sesión se cerrará permanentemente.
+            </div>
+
+            <div class="d-flex justify-content-between">
+                <a href="{% url 'orders:sesion-cerrar' session.id %}" class="btn btn-secondary btn-lg">
+                    <i class="bi bi-pencil me-1"></i>Modificar
+                </a>
+                <form method="post" action="{% url 'orders:sesion-confirmar' session.id %}" style="display: inline;">
+                    {% csrf_token %}
+                    {% for pm in payment_methods %}
+                    <input type="hidden" name="pm_declarado_{{ pm.id }}" value="{{ payment_declared|get_item:pm.id|default:'0' }}">
+                    <input type="hidden" name="pm_comentario_{{ pm.id }}" value="{{ payment_comentarios|get_item:pm.id|default:'' }}">
+                    {% endfor %}
+                    <input type="hidden" name="comentario_cierre" value="{{ comentario_cierre|default:'' }}">
+                    <button type="submit" class="btn btn-danger btn-lg">
+                        <i class="bi bi-lock me-1"></i>Confirmar Cierre de Caja
+                    </button>
+                </form>
+            </div>
+
+        </div>
+    </div>
+</div>
+
+<script>
+(function() {
+    // Toggle columnas de control
+    var btnToggle = document.getElementById('btnToggle');
+    var cols = document.querySelectorAll('.col-toggle');
+    var colsVisible = false;
+
+    btnToggle.addEventListener('click', function() {
+        colsVisible = !colsVisible;
+        var display = colsVisible ? '' : 'none';
+        var icon = colsVisible ? 'bi-eye' : 'bi-eye-slash';
+        cols.forEach(function(el) { el.style.display = display; });
+        btnToggle.querySelector('i').className = 'bi ' + icon + ' me-1';
+    });
+})();
+</script>
+{% endblock %}
