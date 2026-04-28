@@ -20,11 +20,11 @@ from apps.orders.services.payment import register_transaction, TransactionError
 from apps.orders.services.payment_calculator import (
     calculate_iva_breakdown,
     calculate_suggested_tip,
-    set_tip,
     PaymentCalculatorError,
 )
 from apps.orders.selectors.transaction import TransactionSelector
 from apps.orders.selectors.order_item import OrderItemSelector
+from apps.orders.models import PaymentMethod
 from apps.dining.models import DiningTable
 from apps.dining.services.table import DiningTableService, DiningTableError
 from apps.core.constants.actions import SystemActions
@@ -35,13 +35,51 @@ def _get_or_create_order_for_session(request):
     order = None
     if order_id:
         try:
-            order = Order.objects.for_tenant(request.tenant).get(id=order_id, estado=Order.States.ABIERTO)
+            order = Order.objects.for_tenant(request.tenant).get(id=order_id, estado__in=Order.ACTIVE_STATES)
         except Order.DoesNotExist:
             order = None
     if not order:
         order = create_order(user=request.user, tenant=request.tenant, tipo_flujo=Order.Flow.RAPIDO)
         request.session['order_id'] = order.id
     return order
+
+
+def _build_payment_context(order, tenant, table=None):
+    """Construye el contexto común para vistas de pago.
+
+    Incluye desglose de consumo, propinas pagadas y sugerencias.
+    """
+    iva_breakdown = calculate_iva_breakdown(order, tenant)
+    suggested_tip = TransactionSelector.suggested_tip(order)
+    total_consumo_paid = TransactionSelector.total_consumo_paid(order)
+    total_tip_paid = TransactionSelector.total_tip_paid(order)
+    total_consumo = TransactionSelector.total_cuenta(order)
+    total_pending = TransactionSelector.total_pending(order)
+    suggested_tip_pending = TransactionSelector.suggested_tip_pending(order)
+    total_pending_with_tip = TransactionSelector.total_pending_with_tip(order)
+    total_pagado = total_consumo_paid + total_tip_paid
+    unpaid_items = OrderItemSelector.get_unpaid_items(order)
+    paid_items = OrderItemSelector.get_paid_items(order)
+    transactions = TransactionSelector.list_for_order(order).select_related('order', 'payment_method')
+    payment_methods = PaymentMethod.objects.for_tenant(tenant).filter(activo=True)
+
+    return {
+        'order': order,
+        'table': table,
+        'iva_breakdown': iva_breakdown,
+        'suggested_tip': suggested_tip,
+        'total_consumo_paid': total_consumo_paid,
+        'total_tip_paid': total_tip_paid,
+        'total_consumo': total_consumo,
+        'total_pending': total_pending,
+        'suggested_tip_pending': suggested_tip_pending,
+        'total_pending_with_tip': total_pending_with_tip,
+        'total_pagado': total_pagado,
+        'unpaid_items': unpaid_items,
+        'paid_items': paid_items,
+        'transactions': transactions,
+        'payment_methods': payment_methods,
+    }
 
 
 class TerminalVentasView(LoginRequiredMixin, TemplateView):
@@ -118,37 +156,13 @@ def mesa_pedido(request, table_id):
     categories = CategorySelector.get_active_categories(request.tenant)
     
     order_items = order.items.exclude(estado='ANULADO').select_related('product')
-
-    if order.propina_monto == Decimal('0'):
-        suggested = calculate_suggested_tip(order)
-        set_tip(user=request.user, order=order, amount=suggested)
-        order.refresh_from_db()
-
-    iva_breakdown = calculate_iva_breakdown(order, request.tenant)
-    suggested_tip = calculate_suggested_tip(order)
-    total_paid = TransactionSelector.total_paid(order)
-    total_cuenta = TransactionSelector.total_cuenta(order)
-    total_pending = TransactionSelector.total_pending(order)
-    unpaid_items = OrderItemSelector.get_unpaid_items(order)
-    paid_items = OrderItemSelector.get_paid_items(order)
-    transactions = TransactionSelector.list_for_order(order).select_related('order')
+    ctx = _build_payment_context(order, request.tenant, table=table)
+    ctx['order_items'] = order_items
+    ctx['products'] = products
+    ctx['categories'] = categories
+    ctx['has_active_items'] = order_items.exists()
     
-    return render(request, 'orders/mesa_pedido.html', {
-        'table': table,
-        'order': order,
-        'order_items': order_items,
-        'products': products,
-        'categories': categories,
-        'has_active_items': order_items.exists(),
-        'iva_breakdown': iva_breakdown,
-        'suggested_tip': suggested_tip,
-        'total_paid': total_paid,
-        'total_cuenta': total_cuenta,
-        'total_pending': total_pending,
-        'unpaid_items': unpaid_items,
-        'paid_items': paid_items,
-        'transactions': transactions,
-    })
+    return render(request, 'orders/mesa_pedido.html', ctx)
 
 
 @login_required
@@ -235,34 +249,12 @@ def mesa_solicitar_cuenta(request, table_id):
     except DiningTableError as e:
         return HttpResponse(str(e), status=400)
 
-    if order.propina_monto == Decimal('0'):
-        suggested = calculate_suggested_tip(order)
-        set_tip(user=request.user, order=order, amount=suggested)
-        order.refresh_from_db()
-
     order_items = order.items.exclude(estado='ANULADO').select_related('product')
-    iva_breakdown = calculate_iva_breakdown(order, request.tenant)
-    suggested_tip = calculate_suggested_tip(order)
-    total_paid = TransactionSelector.total_paid(order)
-    total_cuenta = TransactionSelector.total_cuenta(order)
-    total_pending = TransactionSelector.total_pending(order)
-    unpaid_items = OrderItemSelector.get_unpaid_items(order)
-    paid_items = OrderItemSelector.get_paid_items(order)
-    transactions = TransactionSelector.list_for_order(order).select_related('order')
+    ctx = _build_payment_context(order, request.tenant, table=table)
+    ctx['order_items'] = order_items
+    ctx['has_active_items'] = order_items.exists()
 
-    cuenta_html = render(request, 'orders/partials/cuenta_actualizada.html', {
-        'order': order,
-        'order_items': order_items,
-        'table': table,
-        'iva_breakdown': iva_breakdown,
-        'suggested_tip': suggested_tip,
-        'total_paid': total_paid,
-        'total_cuenta': total_cuenta,
-        'total_pending': total_pending,
-        'unpaid_items': unpaid_items,
-        'paid_items': paid_items,
-        'transactions': transactions,
-    }).content.decode()
+    cuenta_html = render(request, 'orders/partials/cuenta_actualizada.html', ctx).content.decode()
 
     actions_html = render(request, 'orders/partials/mesa_actions.html', {
         'order': order,
@@ -297,83 +289,8 @@ def mesa_modal_pago(request, table_id):
     table = get_object_or_404(DiningTable.objects.for_tenant(request.tenant), pk=table_id)
     order = get_object_or_404(Order.objects.for_tenant(request.tenant), table=table, estado__in=Order.ACTIVE_STATES)
 
-    if order.propina_monto == Decimal('0'):
-        suggested = calculate_suggested_tip(order)
-        set_tip(user=request.user, order=order, amount=suggested)
-        order.refresh_from_db()
-
-    iva_breakdown = calculate_iva_breakdown(order, request.tenant)
-    suggested_tip = calculate_suggested_tip(order)
-    total_paid = TransactionSelector.total_paid(order)
-    total_cuenta = TransactionSelector.total_cuenta(order)
-    total_pending = TransactionSelector.total_pending(order)
-    transactions = TransactionSelector.list_for_order(order).select_related('order')
-    unpaid_items = OrderItemSelector.get_unpaid_items(order)
-    paid_items = OrderItemSelector.get_paid_items(order)
-
-    return render(request, 'orders/partials/modal_pago.html', {
-        'order': order,
-        'table': table,
-        'iva_breakdown': iva_breakdown,
-        'suggested_tip': suggested_tip,
-        'total_paid': total_paid,
-        'total_cuenta': total_cuenta,
-        'total_pending': total_pending,
-        'transactions': transactions,
-        'unpaid_items': unpaid_items,
-        'paid_items': paid_items,
-    })
-
-
-@login_required
-def orden_fijar_propina(request, order_id):
-    """Establece el monto de propina en una orden y retorna modal de pago actualizado."""
-    from apps.orders.selectors.order_item import OrderItemSelector
-
-    order = get_object_or_404(Order.objects.for_tenant(request.tenant), pk=order_id)
-
-    if request.method != 'POST':
-        return HttpResponse('Método no permitido', status=405)
-
-    try:
-        propina_monto = Decimal(request.POST.get('propina_monto', '0'))
-    except Exception:
-        return HttpResponse('Monto de propina inválido', status=400)
-
-    try:
-        set_tip(user=request.user, order=order, amount=propina_monto)
-    except PaymentCalculatorError as e:
-        return HttpResponse(str(e), status=400)
-
-    order.refresh_from_db()
-    iva_breakdown = calculate_iva_breakdown(order, request.tenant)
-    suggested_tip = calculate_suggested_tip(order)
-    total_paid = TransactionSelector.total_paid(order)
-    total_cuenta = TransactionSelector.total_cuenta(order)
-    total_pending = TransactionSelector.total_pending(order)
-    transactions = TransactionSelector.list_for_order(order).select_related('order')
-    unpaid_items = OrderItemSelector.get_unpaid_items(order)
-    paid_items = OrderItemSelector.get_paid_items(order)
-
-    table = None
-    if order.table_id:
-        table = order.table
-
-    template = 'orders/partials/modal_pago.html' if order.table_id else 'orders/partials/terminal_modal_pago.html'
-
-    return render(request, template, {
-        'order': order,
-        'table': table,
-        'iva_breakdown': iva_breakdown,
-        'suggested_tip': suggested_tip,
-        'total_paid': total_paid,
-        'total_cuenta': total_cuenta,
-        'total_pending': total_pending,
-        'transactions': transactions,
-        'unpaid_items': unpaid_items,
-        'paid_items': paid_items,
-        'success': 'Propina actualizada',
-    })
+    ctx = _build_payment_context(order, request.tenant, table=table)
+    return render(request, 'orders/partials/modal_pago.html', ctx)
 
 
 @login_required
@@ -388,6 +305,12 @@ def orden_procesar_pago(request, order_id):
     monto = request.POST.get('monto')
     items_ids = request.POST.getlist('items[]')
     cantidades_vals = request.POST.getlist('cantidades[]')
+    payment_method_id = request.POST.get('payment_method')
+    tip_amount = request.POST.get('tip_amount', '0')
+
+    payment_method = None
+    if payment_method_id:
+        payment_method = get_object_or_404(PaymentMethod.objects.for_tenant(request.tenant), pk=payment_method_id)
 
     order_items = None
     cantidades = None
@@ -405,37 +328,20 @@ def orden_procesar_pago(request, order_id):
             amount=monto if monto else None,
             order_items=order_items,
             cantidades=cantidades,
+            payment_method=payment_method,
+            tip_amount=Decimal(tip_amount) if tip_amount else Decimal('0'),
         )
     except (TransactionError, PaymentCalculatorError) as e:
         order.refresh_from_db()
-        iva_breakdown = calculate_iva_breakdown(order, request.tenant)
-        suggested_tip = calculate_suggested_tip(order)
-        total_paid = TransactionSelector.total_paid(order)
-        total_cuenta = TransactionSelector.total_cuenta(order)
-        total_pending = TransactionSelector.total_pending(order)
-        transactions = TransactionSelector.list_for_order(order)
-        unpaid_items = OrderItemSelector.get_unpaid_items(order)
-        paid_items = OrderItemSelector.get_paid_items(order)
-
         table = order.table if order.table_id else None
+        ctx = _build_payment_context(order, request.tenant, table=table)
+        ctx['error'] = str(e)
         template = 'orders/partials/modal_pago.html' if order.table_id else 'orders/partials/terminal_modal_pago.html'
-        return render(request, template, {
-            'order': order,
-            'table': table,
-            'iva_breakdown': iva_breakdown,
-            'suggested_tip': suggested_tip,
-            'total_paid': total_paid,
-            'total_cuenta': total_cuenta,
-            'total_pending': total_pending,
-            'transactions': transactions,
-            'unpaid_items': unpaid_items,
-            'paid_items': paid_items,
-            'error': str(e),
-        }, status=400)
+        return render(request, template, ctx, status=400)
 
     order.refresh_from_db()
 
-    if order.estado in {Order.States.COMPLETADO, Order.States.CONFIRMADO}:
+    if order.estado == Order.States.COMPLETADO:
         if order.table_id:
             response = HttpResponse(status=200)
             response['HX-Redirect'] = '/salon/mesas/'
@@ -446,30 +352,19 @@ def orden_procesar_pago(request, order_id):
             response['HX-Redirect'] = '/ordenes/terminal-ventas/'
             return response
 
-    iva_breakdown = calculate_iva_breakdown(order, request.tenant)
-    suggested_tip = calculate_suggested_tip(order)
-    total_paid = TransactionSelector.total_paid(order)
-    total_cuenta = TransactionSelector.total_cuenta(order)
-    total_pending = TransactionSelector.total_pending(order)
-    transactions = TransactionSelector.list_for_order(order)
-    unpaid_items = OrderItemSelector.get_unpaid_items(order)
-    paid_items = OrderItemSelector.get_paid_items(order)
+    if order.estado == Order.States.CONFIRMADO and not order.table_id:
+        # Rapid flow confirmed but not completed (may still have pending tip or additional payments)
+        # Return updated modal so user can continue operating
+        table = order.table if order.table_id else None
+        ctx = _build_payment_context(order, request.tenant, table=table)
+        ctx['success'] = 'Pago registrado exitosamente'
+        return render(request, 'orders/partials/terminal_modal_pago.html', ctx)
 
     table = order.table if order.table_id else None
+    ctx = _build_payment_context(order, request.tenant, table=table)
+    ctx['success'] = 'Pago registrado exitosamente'
     template = 'orders/partials/modal_pago.html' if order.table_id else 'orders/partials/terminal_modal_pago.html'
-    return render(request, template, {
-        'order': order,
-        'table': table,
-        'iva_breakdown': iva_breakdown,
-        'suggested_tip': suggested_tip,
-        'total_paid': total_paid,
-        'total_cuenta': total_cuenta,
-        'total_pending': total_pending,
-        'transactions': transactions,
-        'unpaid_items': unpaid_items,
-        'paid_items': paid_items,
-        'success': 'Pago registrado exitosamente',
-    })
+    return render(request, template, ctx)
 
 
 @login_required
@@ -477,26 +372,8 @@ def orden_pre_cuenta(request, order_id):
     """Retorna la pre-cuenta detallada con items pagados y no pagados."""
     order = get_object_or_404(Order.objects.for_tenant(request.tenant), pk=order_id)
 
-    iva_breakdown = calculate_iva_breakdown(order, request.tenant)
-    suggested_tip = calculate_suggested_tip(order)
-    total_paid = TransactionSelector.total_paid(order)
-    total_cuenta = TransactionSelector.total_cuenta(order)
-    total_pending = TransactionSelector.total_pending(order)
-    transactions = TransactionSelector.list_for_order(order)
-    unpaid_items = OrderItemSelector.get_unpaid_items(order)
-    paid_items = OrderItemSelector.get_paid_items(order)
-
-    return render(request, 'orders/partials/pre_cuenta.html', {
-        'order': order,
-        'iva_breakdown': iva_breakdown,
-        'suggested_tip': suggested_tip,
-        'total_paid': total_paid,
-        'total_cuenta': total_cuenta,
-        'total_pending': total_pending,
-        'transactions': transactions,
-        'unpaid_items': unpaid_items,
-        'paid_items': paid_items,
-    })
+    ctx = _build_payment_context(order, request.tenant)
+    return render(request, 'orders/partials/pre_cuenta.html', ctx)
 
 
 @login_required
@@ -508,24 +385,5 @@ def terminal_modal_pago(request):
 
     order = get_object_or_404(Order.objects.for_tenant(request.tenant), pk=order_id, estado__in=Order.ACTIVE_STATES)
 
-    if order.propina_monto == Decimal('0'):
-        suggested = calculate_suggested_tip(order)
-        set_tip(user=request.user, order=order, amount=suggested)
-        order.refresh_from_db()
-
-    iva_breakdown = calculate_iva_breakdown(order, request.tenant)
-    suggested_tip = calculate_suggested_tip(order)
-    total_paid = TransactionSelector.total_paid(order)
-    total_cuenta = TransactionSelector.total_cuenta(order)
-    total_pending = TransactionSelector.total_pending(order)
-    transactions = TransactionSelector.list_for_order(order)
-
-    return render(request, 'orders/partials/terminal_modal_pago.html', {
-        'order': order,
-        'iva_breakdown': iva_breakdown,
-        'suggested_tip': suggested_tip,
-        'total_paid': total_paid,
-        'total_cuenta': total_cuenta,
-        'total_pending': total_pending,
-        'transactions': transactions,
-    })
+    ctx = _build_payment_context(order, request.tenant)
+    return render(request, 'orders/partials/terminal_modal_pago.html', ctx)

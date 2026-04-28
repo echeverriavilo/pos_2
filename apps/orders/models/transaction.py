@@ -6,6 +6,7 @@ from apps.core.models import Tenant
 from apps.core.models.managers import TenantAwareManager
 from apps.orders.models.order import Order
 from apps.orders.models.order_item import OrderItem
+from apps.orders.models.payment_method import PaymentMethod
 
 
 class Transaction(models.Model):
@@ -26,6 +27,14 @@ class Transaction(models.Model):
     )
     monto = models.DecimalField(max_digits=12, decimal_places=2)
     tipo_pago = models.CharField(max_length=16, choices=PaymentType.choices)
+    payment_method = models.ForeignKey(
+        PaymentMethod,
+        on_delete=models.PROTECT,
+        related_name='transactions',
+        null=True,
+        blank=True,
+    )
+    tip_amount = models.DecimalField(max_digits=12, decimal_places=2, default=Decimal('0'))
     created_at = models.DateTimeField(auto_now_add=True)
 
     objects = TenantAwareManager()
@@ -45,6 +54,8 @@ class Transaction(models.Model):
             raise ValueError('La transacción debe pertenecer al mismo tenant que la orden.')
         if Decimal(self.monto) <= Decimal('0'):
             raise ValueError('El monto de la transacción debe ser mayor que cero.')
+        if self.payment_method and self.payment_method.tenant_id != self.order.tenant_id:
+            raise ValueError('El método de pago debe pertenecer al mismo tenant que la orden.')
         self.tenant = self.order.tenant
         super().save(*args, **kwargs)
 

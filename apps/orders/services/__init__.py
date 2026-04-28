@@ -19,7 +19,6 @@ from .payment_calculator import (
     PaymentCalculatorError,
     calculate_iva_breakdown,
     calculate_suggested_tip,
-    set_tip,
 )
 from .dispositivo import DispositivoService, DispositivoError
 from .comanda import ComandaService, ComandaError
@@ -41,7 +40,6 @@ __all__ = [
     'recalculate_total',
     'register_transaction',
     'remove_item_from_order',
-    'set_tip',
     'transition_order_state',
     'update_order_payment_state',
     'DispositivoService',

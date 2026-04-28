@@ -159,7 +159,10 @@ def apply_payment_to_items(*, transaction_record: Transaction, order_items: Iter
 
 
 def update_order_payment_state(*, user, order: Order) -> Order:
-    """Actualiza el estado de una orden según el total pagado acumulado.
+    """Actualiza el estado de una orden según el consumo pagado acumulado.
+
+    El cierre de mesa se determina por consumo pagado >= total_bruto.
+    La propina es voluntaria y no afecta las transiciones de estado.
 
     Parámetros:
     - user: usuario que ejecuta la operación
@@ -174,16 +177,16 @@ def update_order_payment_state(*, user, order: Order) -> Order:
 
     with transaction.atomic():
         locked_order = Order.objects.select_for_update().get(pk=order.pk)
-        total_paid = TransactionSelector.total_paid(locked_order)
-        total_cuenta = TransactionSelector.total_cuenta(locked_order)
-        if total_paid > total_cuenta:
-            raise TransactionError('El total pagado no puede exceder el total de la cuenta.')
+        total_consumo_paid = TransactionSelector.total_consumo_paid(locked_order)
+        total_consumo = TransactionSelector.total_cuenta(locked_order)
+        if total_consumo_paid > total_consumo:
+            raise TransactionError('El consumo pagado no puede exceder el total de consumo.')
 
-        if total_paid == Decimal('0'):
+        if total_consumo_paid == Decimal('0'):
             return locked_order
 
         if locked_order.tipo_flujo == Order.Flow.MESA:
-            if total_paid < total_cuenta:
+            if total_consumo_paid < total_consumo:
                 if locked_order.estado == Order.States.ABIERTO:
                     transition_order_state(user=user, order=locked_order, target_state=Order.States.PAGADO_PARCIAL)
                 return locked_order
@@ -193,11 +196,11 @@ def update_order_payment_state(*, user, order: Order) -> Order:
                     user=user,
                     order=locked_order,
                     target_state=Order.States.COMPLETADO,
-                    total_pagado=total_paid,
+                    total_pagado=total_consumo_paid,
                 )
             return locked_order
 
-        if total_paid < total_cuenta:
+        if total_consumo_paid < total_consumo:
             if locked_order.estado == Order.States.ABIERTO:
                 transition_order_state(user=user, order=locked_order, target_state=Order.States.PAGADO_PARCIAL)
             return locked_order
@@ -209,12 +212,12 @@ def update_order_payment_state(*, user, order: Order) -> Order:
                 user=user,
                 order=locked_order,
                 target_state=Order.States.CONFIRMADO,
-                total_pagado=total_paid,
+                total_pagado=total_consumo_paid,
             )
         return locked_order
 
 
-def register_transaction(*, user, tenant, order: Order, payment_type: str, amount=None, order_items=None, cantidades=None) -> Transaction:
+def register_transaction(*, user, tenant, order: Order, payment_type: str, amount=None, order_items=None, cantidades=None, payment_method=None, tip_amount=None) -> Transaction:
     """Registra una transacción de pago respetando invariantes del dominio.
 
     Parámetros:
@@ -225,6 +228,8 @@ def register_transaction(*, user, tenant, order: Order, payment_type: str, amoun
     - amount: monto opcional según tipo.
     - order_items: ítems opcionales para pagos por productos.
     - cantidades: dict opcional {item_id: cantidad_a_pagar} para pago parcial por cantidad.
+    - payment_method: instancia de PaymentMethod para esta transacción.
+    - tip_amount: monto de propina para esta transacción (opcional, sin límite superior).
 
     Retorno:
     - Transaction creada.
@@ -239,14 +244,25 @@ def register_transaction(*, user, tenant, order: Order, payment_type: str, amoun
         locked_order = Order.objects.for_tenant(tenant).select_for_update().get(pk=order.pk)
         _validate_order_for_payment(locked_order, tenant)
 
-        pending_total = TransactionSelector.total_pending(locked_order)
-        if pending_total <= Decimal('0'):
+        pending_consumo = TransactionSelector.total_pending(locked_order)
+        if pending_consumo <= Decimal('0'):
             raise TransactionError('La orden no tiene saldo pendiente.')
+
+        if payment_method is None:
+            raise TransactionError('El método de pago es obligatorio.')
+        if not payment_method.activo:
+            raise TransactionError('El método de pago seleccionado no está activo.')
+        if payment_method.tenant_id != tenant.id:
+            raise TransactionError('El método de pago debe pertenecer al tenant de la operación.')
+
+        tip_amount = Decimal(tip_amount) if tip_amount is not None else Decimal('0')
+        if tip_amount < Decimal('0'):
+            raise TransactionError('El monto de propina no puede ser negativo.')
 
         locked_items = []
         if payment_type == Transaction.PaymentType.TOTAL:
-            transaction_amount = pending_total
-            if amount is not None and Decimal(amount) != pending_total:
+            transaction_amount = pending_consumo
+            if amount is not None and Decimal(amount) != pending_consumo:
                 raise TransactionError('El pago TOTAL debe coincidir exactamente con el saldo pendiente.')
             if order_items:
                 raise TransactionError('El pago TOTAL no admite selección de ítems.')
@@ -271,14 +287,16 @@ def register_transaction(*, user, tenant, order: Order, payment_type: str, amoun
         else:
             raise TransactionError('Tipo de pago no soportado.')
 
-        if transaction_amount > pending_total:
-            raise TransactionError('El monto del pago no puede exceder el saldo pendiente.')
+        if transaction_amount > pending_consumo:
+            raise TransactionError('El monto del pago no puede exceder el consumo pendiente.')
 
         transaction_record = Transaction.objects.create(
             tenant=tenant,
             order=locked_order,
             monto=transaction_amount,
             tipo_pago=payment_type,
+            payment_method=payment_method,
+            tip_amount=tip_amount,
         )
 
         if payment_type == Transaction.PaymentType.PRODUCTOS:

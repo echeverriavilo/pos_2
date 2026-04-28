@@ -32,52 +32,43 @@
                             <span>${{ iva_breakdown.iva|floatformat:0 }}</span>
                         </div>
                         <div class="d-flex justify-content-between mb-1 fw-bold">
-                            <span>Subtotal:</span>
-                            <span>${{ iva_breakdown.total_bruto|floatformat:0 }}</span>
+                            <span>Total Consumo:</span>
+                            <span>${{ total_consumo|floatformat:0 }}</span>
                         </div>
-                        {% include "orders/partials/propina_selector.html" %}
-                        {% if order.propina_monto > 0 %}
-                        <div class="d-flex justify-content-between mb-1 text-success">
-                            <span>Propina aplicada:</span>
-                            <span>${{ order.propina_monto|floatformat:0 }}</span>
+                        <div class="d-flex justify-content-between mb-1 text-muted">
+                            <span>Propina sugerida 10%:</span>
+                            <span>${{ suggested_tip|floatformat:0 }}</span>
+                        </div>
+                        {% if total_consumo_paid > 0 or total_tip_paid > 0 %}
+                        <hr>
+                        {% if total_consumo_paid > 0 %}
+                        <div class="d-flex justify-content-between mb-1">
+                            <span>Consumo pagado:</span>
+                            <span class="text-primary">${{ total_consumo_paid|floatformat:0 }}</span>
                         </div>
                         {% endif %}
+                        {% if total_tip_paid > 0 %}
+                        <div class="d-flex justify-content-between mb-1 text-success">
+                            <span>Propina pagada:</span>
+                            <span>${{ total_tip_paid|floatformat:0 }}</span>
+                        </div>
+                        {% endif %}
+                        {% endif %}
                         <hr>
-                        <div class="d-flex justify-content-between fw-bold">
-                            <span>TOTAL CUENTA:</span>
-                            <span class="text-success">${{ total_cuenta|floatformat:0 }}</span>
-                        </div>
-                        <div class="d-flex justify-content-between mt-2">
-                            <span>Pagado:</span>
-                            <span class="text-primary">${{ total_paid|floatformat:0 }}</span>
-                        </div>
                         <div class="d-flex justify-content-between fw-bold text-danger">
                             <span>PENDIENTE:</span>
                             <span>${{ total_pending|floatformat:0 }}</span>
                         </div>
+                        <div class="d-flex justify-content-between text-muted">
+                            <span>Propina sugerida 10%:</span>
+                            <span>${{ suggested_tip_pending|floatformat:0 }}</span>
+                        </div>
+                        <div class="d-flex justify-content-between fw-bold">
+                            <span>Total Pendiente:</span>
+                            <span class="text-success">${{ total_pending_with_tip|floatformat:0 }}</span>
+                        </div>
                     </div>
                 </div>
-                
-                {% if transactions %}
-                <div class="card mb-3">
-                    <div class="card-header"><strong><i class="bi bi-clock-history me-1"></i>Pagos Realizados</strong></div>
-                    <div class="card-body p-0">
-                        <ul class="list-group list-group-flush">
-                            {% for txn in transactions %}
-                            <li class="list-group-item d-flex justify-content-between">
-                                <span>
-                                    <span class="badge bg-secondary">{{ txn.tipo_pago }}</span>
-                                    {% if txn.tipo_pago == 'PRODUCTOS' %}
-                                    <small class="text-muted">(por items)</small>
-                                    {% endif %}
-                                </span>
-                                <strong>${{ txn.monto|floatformat:0 }}</strong>
-                            </li>
-                            {% endfor %}
-                        </ul>
-                    </div>
-                </div>
-                {% endif %}
                 
                 <ul class="nav nav-tabs" id="paymentTabs" role="tablist">
                     <li class="nav-item">
@@ -91,15 +82,34 @@
                 <div class="tab-content p-3 border border-top-0">
                     <div class="tab-pane fade show active" id="tab-total">
                         <p class="text-muted small">Pagar el saldo pendiente completo</p>
+                        <div class="mb-2">
+                            <label for="payment-method-total" class="form-label small">Forma de pago:</label>
+                            <select id="payment-method-total" class="form-select form-select-sm" required>
+                                <option value="">Seleccione...</option>
+                                {% for pm in payment_methods %}
+                                <option value="{{ pm.id }}">{{ pm.nombre }}</option>
+                                {% endfor %}
+                            </select>
+                        </div>
+                        {% include "orders/partials/propina_input.html" with tip_selector_id="tip-total" consumo_base=total_pending %}
                         <form onsubmit="submitTotalPayment('{{ order.id }}', event); return false;">
-                            <button type="submit" class="btn btn-success w-100 py-3 fs-5">
-                                <i class="bi bi-check-circle me-2"></i>Pagar ${{ total_pending|floatformat:0 }}
+                            <button type="submit" class="btn btn-success w-100 py-3 fs-5" id="btn-total-pay">
+                                <i class="bi bi-check-circle me-2"></i>Registrar Pago
                             </button>
                         </form>
                     </div>
                     
                     <div class="tab-pane fade" id="tab-abono">
-                        {% include "orders/partials/formulario_abono.html" with order=order max_amount=total_pending %}
+                        <div class="mb-2">
+                            <label for="payment-method-abono" class="form-label small">Forma de pago:</label>
+                            <select id="payment-method-abono" class="form-select form-select-sm" required>
+                                <option value="">Seleccione...</option>
+                                {% for pm in payment_methods %}
+                                <option value="{{ pm.id }}">{{ pm.nombre }}</option>
+                                {% endfor %}
+                            </select>
+                        </div>
+                        {% include "orders/partials/formulario_abono.html" with order=order max_amount=total_pending tip_selector_id="tip-abono" %}
                     </div>
                 </div>
             </div>
@@ -142,75 +152,122 @@
         });
     };
 
+    function initTipSelector(selectorId, consumoBase) {
+        var container = document.getElementById(selectorId);
+        if (!container) return;
+        
+        var amountInput = container.querySelector('.tip-amount-input');
+        var totalDisplay = container.querySelector('.tip-total-display');
+        var modeBtns = container.querySelectorAll('.tip-mode-btn');
+        var customPctDiv = container.querySelector('.custom-pct-input');
+        var customPctInput = container.querySelector('.custom-pct-value');
+        
+        var consumoInput = container.closest('.tab-pane').querySelector('input[name="monto"], input[id*="abono-amount"]');
+        
+        var currentMode = 'pct';
+        var currentPct = 10;
+        
+        function getConsumo() {
+            return parseFloat(consumoInput ? consumoInput.value : (consumoBase || 0)) || 0;
+        }
+        
+        function updateTip() {
+            var consumo = getConsumo();
+            var tip = 0;
+            
+            if (currentMode === 'pct') {
+                tip = Math.round(consumo * currentPct / 100);
+            } else if (currentMode === 'custom-pct') {
+                var customPctVal = parseFloat(customPctInput ? customPctInput.value : 0) || 0;
+                tip = Math.round(consumo * customPctVal / 100);
+            }
+            
+            amountInput.value = tip;
+            
+            var total = consumo + tip;
+            totalDisplay.textContent = '$' + total.toLocaleString('es-CL');
+        }
+        
+        function setMode(mode, pct) {
+            currentMode = mode;
+            if (pct !== undefined) currentPct = pct;
+            
+            modeBtns.forEach(function(btn) {
+                var btnMode = btn.dataset.mode;
+                var btnPct = btn.dataset.pct;
+                var isActive = (btnMode === mode);
+                if (mode === 'pct' && btnPct !== undefined) {
+                    isActive = (btnPct == pct);
+                }
+                btn.classList.toggle('active', isActive);
+            });
+            
+            if (customPctDiv) {
+                customPctDiv.style.display = (mode === 'custom-pct') ? '' : 'none';
+            }
+            
+            updateTip();
+        }
+        
+        modeBtns.forEach(function(btn) {
+            btn.addEventListener('click', function() {
+                setMode(this.dataset.mode, this.dataset.pct !== undefined ? parseFloat(this.dataset.pct) : undefined);
+            });
+        });
+        
+        if (customPctInput) {
+            customPctInput.addEventListener('input', function() {
+                updateTip();
+            });
+        }
+        
+        amountInput.addEventListener('input', function() {
+            var total = getConsumo() + (parseFloat(amountInput.value) || 0);
+            totalDisplay.textContent = '$' + total.toLocaleString('es-CL');
+        });
+        
+        if (consumoInput) {
+            consumoInput.addEventListener('input', updateTip);
+        }
+        
+        setMode('pct', 10);
+    }
+    
+    initTipSelector('tip-total', {{ total_pending|floatformat:0 }});
+    initTipSelector('tip-abono', 0);
+
     window.submitTotalPayment = function(orderId, event) {
+        var paymentMethod = document.getElementById('payment-method-total').value;
+        var tipAmount = document.getElementById('tip-total-amount').value || '0';
+        if (!paymentMethod) {
+            alert('Seleccione una forma de pago');
+            return;
+        }
         var formData = new FormData();
         formData.append('tipo_pago', 'TOTAL');
+        formData.append('payment_method', paymentMethod);
+        formData.append('tip_amount', tipAmount);
         paymentFetch('/ordenes/orden/' + orderId + '/procesar-pago/', formData);
     };
 
     window.submitAbono = function(orderId, event) {
         var amount = document.getElementById('abono-amount').value;
+        var paymentMethod = document.getElementById('payment-method-abono').value;
+        var tipAmount = document.getElementById('tip-abono-amount').value || '0';
         if (!amount || parseFloat(amount) < 100) {
-            alert('Ingrese un monto válido (mínimo $100)');
+            alert('Ingrese un monto valido (minimo $100)');
+            return;
+        }
+        if (!paymentMethod) {
+            alert('Seleccione una forma de pago');
             return;
         }
         var formData = new FormData();
         formData.append('tipo_pago', 'ABONO');
         formData.append('monto', amount);
+        formData.append('payment_method', paymentMethod);
+        formData.append('tip_amount', tipAmount);
         paymentFetch('/ordenes/orden/' + orderId + '/procesar-pago/', formData);
-    };
-
-    window.applyTip = function(orderId, amount) {
-        var formData = new FormData();
-        formData.append('propina_monto', amount);
-        paymentFetch('/ordenes/orden/' + orderId + '/fijar-propina/', formData);
-    };
-
-    window.applyCustomPct = function(orderId) {
-        var pctInput = document.getElementById('tip-custom-value');
-        var pct = parseFloat(pctInput.value) || 0;
-        var amount = Math.round(TOTAL_BRUTO * pct / 100);
-        applyTip(orderId, String(amount));
-    };
-
-    window.applyCustomFixed = function(orderId) {
-        var val = document.getElementById('tip-custom-value').value;
-        applyTip(orderId, val);
-    };
-
-    window.toggleTipCustomPct = function(orderId) {
-        var container = document.getElementById('propina-buttons');
-        container.innerHTML =
-            '<div class="input-group input-group-sm" style="width:220px;">' +
-            '<input type="number" id="tip-custom-value" class="form-control" placeholder="Porcentaje" min="0" step="1" style="max-width:100px;">' +
-            '<span class="input-group-text">%</span>' +
-            '<button class="btn btn-primary btn-sm" onclick="applyCustomPct(\'' + orderId + '\')">Aplicar</button>' +
-            '<button class="btn btn-outline-secondary btn-sm" onclick="cancelTipEdit()">Cancelar</button>' +
-            '</div>';
-    };
-
-    window.toggleTipCustomFixed = function(orderId) {
-        var container = document.getElementById('propina-buttons');
-        container.innerHTML =
-            '<div class="input-group input-group-sm" style="width:220px;">' +
-            '<span class="input-group-text">$</span>' +
-            '<input type="number" id="tip-custom-value" class="form-control" placeholder="Monto" min="0" step="100" style="max-width:120px;">' +
-            '<button class="btn btn-primary btn-sm" onclick="applyCustomFixed(\'' + orderId + '\')">Aplicar</button>' +
-            '<button class="btn btn-outline-secondary btn-sm" onclick="cancelTipEdit()">Cancelar</button>' +
-            '</div>';
-    };
-
-    window.cancelTipEdit = function() {
-        var id = '{{ order.id }}';
-        var suggested = '{{ suggested_tip|floatformat:0 }}';
-        var hasTip = {% if order.propina_monto > 0 %}true{% else %}false{% endif %};
-        var container = document.getElementById('propina-buttons');
-        container.innerHTML =
-            '<button type="button" class="btn btn-sm ' + (hasTip ? 'btn-outline-secondary' : 'btn-secondary') + '" onclick="applyTip(\'' + id + '\', \'0\')">0%</button>' +
-            '<button type="button" class="btn btn-sm ' + (hasTip ? 'btn-primary' : 'btn-outline-primary') + '" onclick="applyTip(\'' + id + '\', \'' + suggested + '\')">10%</button>' +
-            '<button type="button" class="btn btn-sm btn-outline-info" onclick="toggleTipCustomPct(\'' + id + '\')"><i class="bi bi-percent"></i></button>' +
-            '<button type="button" class="btn btn-sm btn-outline-dark" onclick="toggleTipCustomFixed(\'' + id + '\')"><i class="bi bi-currency-dollar"></i></button>' +
-            '<span class="fw-bold ms-2 ' + (hasTip ? 'text-success' : 'text-muted') + '">${{ order.propina_monto|floatformat:0 }}</span>';
     };
 })();
 </script>

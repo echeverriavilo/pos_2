@@ -18,7 +18,6 @@ urlpatterns = [
     path('mesa/<int:table_id>/solicitar-cuenta/', views.mesa_solicitar_cuenta, name='mesa-solicitar-cuenta'),
     path('mesa/<int:table_id>/modal-pago/', views.mesa_modal_pago, name='mesa-modal-pago'),
     path('mesa/<int:table_id>/liberar/', views.mesa_liberar_mesa, name='mesa-liberar'),
-    path('orden/<int:order_id>/fijar-propina/', views.orden_fijar_propina, name='orden-fijar-propina'),
     path('orden/<int:order_id>/procesar-pago/', views.orden_procesar_pago, name='orden-procesar-pago'),
     path('orden/<int:order_id>/pre-cuenta/', views.orden_pre_cuenta, name='orden-pre-cuenta'),
 ]

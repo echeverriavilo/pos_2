@@ -67,7 +67,7 @@ def _ensure_overdraft_payment(order, total_pagado):
         raise OrderStateTransitionError('El pago total no alcanza el total bruto de la orden.')
 
 
-def create_order(*, user, tenant, tipo_flujo, table=None, propina_monto=Decimal('0')) -> Order:
+def create_order(*, user, tenant, tipo_flujo, table=None) -> Order:
     """Crea una orden válida según el flujo definido y asigna valores iniciales."""
     validate_tenant_access(user, tenant)
     validate_role_permission(user, SystemActions.CREATE_ORDER)
@@ -79,7 +79,6 @@ def create_order(*, user, tenant, tipo_flujo, table=None, propina_monto=Decimal(
             table=table,
             estado=Order.States.ABIERTO,
             total_bruto=Decimal('0'),
-            propina_monto=propina_monto,
         )
 
 

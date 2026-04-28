@@ -39,7 +39,6 @@ class Order(models.Model):
     )
     estado = models.CharField(max_length=32, choices=States.choices)
     total_bruto = models.DecimalField(max_digits=12, decimal_places=2, default=Decimal('0'))
-    propina_monto = models.DecimalField(max_digits=12, decimal_places=2, default=Decimal('0'))
 
     objects = TenantAwareManager()
 

@@ -4,6 +4,7 @@ from .transaction import Transaction, TransactionItem
 from .dispositivo import Dispositivo
 from .configuracion_dispositivo import ConfiguracionDispositivo
 from .comanda import Comanda, ComandaItem
+from .payment_method import PaymentMethod
 
 __all__ = [
     'Order',
@@ -14,4 +15,5 @@ __all__ = [
     'ConfiguracionDispositivo',
     'Comanda',
     'ComandaItem',
+    'PaymentMethod',
 ]

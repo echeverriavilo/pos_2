@@ -4,8 +4,9 @@ import pytest
 
 from apps.catalog.models import Category, Product, StockMovement
 from apps.core.models import CustomUser, Membership, Permission, Role, RolePermission, Tenant
+from apps.core.services.tenant import TenantService
 from apps.dining.models import DiningTable
-from apps.orders.models import Order, OrderItem, Transaction, TransactionItem
+from apps.orders.models import Order, OrderItem, Transaction, TransactionItem, PaymentMethod
 from apps.orders.selectors import TransactionSelector
 from apps.orders.services import TransactionError, add_or_update_item_in_order, create_order, register_transaction
 
@@ -24,26 +25,25 @@ def _create_product(*, tenant, name, price, inventariable=False, stock='20.00'):
 
 def _create_cajero_user(tenant):
     user = CustomUser.objects.create_user(email=f'cajero@{tenant.slug}.com', password='test123')
-    role = Role.objects.create(tenant=tenant, name='cajero')
-    perm, _ = Permission.objects.get_or_create(codename='register_payment')
-    RolePermission.objects.get_or_create(role=role, permission=perm)
+    role = Role.objects.filter(tenant=tenant, name='administrador').first()
     Membership.objects.create(user=user, tenant=tenant, role=role)
     return user
 
 
 def _create_garzon_user(tenant):
     user = CustomUser.objects.create_user(email=f'garzon@{tenant.slug}.com', password='test123')
-    role = Role.objects.create(tenant=tenant, name='garzon')
-    for perm_codename in ['create_order', 'add_item', 'remove_item', 'manage_tables']:
-        perm, _ = Permission.objects.get_or_create(codename=perm_codename)
-        RolePermission.objects.get_or_create(role=role, permission=perm)
+    role = Role.objects.filter(tenant=tenant, name='administrador').first()
     Membership.objects.create(user=user, tenant=tenant, role=role)
     return user
 
 
+def _get_payment_method(tenant):
+    return PaymentMethod.objects.for_tenant(tenant).filter(activo=True).first()
+
+
 @pytest.mark.django_db
 def test_register_total_payment_completes_table_order_and_releases_table():
-    tenant = Tenant.objects.create(slug='mesa-pagos', name='Mesa Pagos')
+    tenant = TenantService.create_tenant(slug='mesa-pagos', name='Mesa Pagos')
     user_garzon = _create_garzon_user(tenant)
     user_cajero = _create_cajero_user(tenant)
     table = DiningTable.objects.create(tenant=tenant, numero='11', estado=DiningTable.States.PAGANDO)
@@ -56,6 +56,7 @@ def test_register_total_payment_completes_table_order_and_releases_table():
         tenant=tenant,
         order=order,
         payment_type=Transaction.PaymentType.TOTAL,
+        payment_method=_get_payment_method(tenant),
     )
 
     order.refresh_from_db()
@@ -63,13 +64,13 @@ def test_register_total_payment_completes_table_order_and_releases_table():
     assert transaction_record.monto == Decimal('7000.00')
     assert order.estado == Order.States.COMPLETADO
     assert table.estado == DiningTable.States.DISPONIBLE
-    assert TransactionSelector.total_paid(order) == Decimal('7000.00')
+    assert TransactionSelector.total_consumo_paid(order) == Decimal('7000.00')
     assert TransactionSelector.total_pending(order) == Decimal('0.00')
 
 
 @pytest.mark.django_db
 def test_register_partial_payment_sets_partial_state():
-    tenant = Tenant.objects.create(slug='abono-parcial', name='Abono Parcial')
+    tenant = TenantService.create_tenant(slug='abono-parcial', name='Abono Parcial')
     user_garzon = _create_garzon_user(tenant)
     user_cajero = _create_cajero_user(tenant)
     table = DiningTable.objects.create(tenant=tenant, numero='12')
@@ -83,18 +84,19 @@ def test_register_partial_payment_sets_partial_state():
         order=order,
         payment_type=Transaction.PaymentType.ABONO,
         amount=Decimal('1000.00'),
+        payment_method=_get_payment_method(tenant),
     )
 
     order.refresh_from_db()
     assert order.estado == Order.States.PAGADO_PARCIAL
-    assert TransactionSelector.total_paid(order) == Decimal('1000.00')
+    assert TransactionSelector.total_consumo_paid(order) == Decimal('1000.00')
     assert TransactionSelector.total_pending(order) == Decimal('4000.00')
     assert order.items.filter(estado=OrderItem.States.PAGADO).count() == 0
 
 
 @pytest.mark.django_db
 def test_product_payment_marks_only_selected_items_as_paid():
-    tenant = Tenant.objects.create(slug='productos', name='Productos')
+    tenant = TenantService.create_tenant(slug='productos', name='Productos')
     user_garzon = _create_garzon_user(tenant)
     user_cajero = _create_cajero_user(tenant)
     table = DiningTable.objects.create(tenant=tenant, numero='13')
@@ -110,6 +112,7 @@ def test_product_payment_marks_only_selected_items_as_paid():
         order=order,
         payment_type=Transaction.PaymentType.PRODUCTOS,
         order_items=[first_item],
+        payment_method=_get_payment_method(tenant),
     )
 
     first_item.refresh_from_db()
@@ -125,7 +128,7 @@ def test_product_payment_marks_only_selected_items_as_paid():
 
 @pytest.mark.django_db
 def test_product_payment_is_blocked_after_abono():
-    tenant = Tenant.objects.create(slug='bloqueo-productos', name='Bloqueo Productos')
+    tenant = TenantService.create_tenant(slug='bloqueo-productos', name='Bloqueo Productos')
     user_garzon = _create_garzon_user(tenant)
     user_cajero = _create_cajero_user(tenant)
     table = DiningTable.objects.create(tenant=tenant, numero='14')
@@ -138,6 +141,7 @@ def test_product_payment_is_blocked_after_abono():
         order=order,
         payment_type=Transaction.PaymentType.ABONO,
         amount=Decimal('500.00'),
+        payment_method=_get_payment_method(tenant),
     )
 
     with pytest.raises(TransactionError):
@@ -147,12 +151,13 @@ def test_product_payment_is_blocked_after_abono():
             order=order,
             payment_type=Transaction.PaymentType.PRODUCTOS,
             order_items=[item],
+            payment_method=_get_payment_method(tenant),
         )
 
 
 @pytest.mark.django_db
 def test_quick_flow_full_first_payment_confirms_and_discounts_inventory():
-    tenant = Tenant.objects.create(slug='rapido-pago-total', name='Rapido Pago Total')
+    tenant = TenantService.create_tenant(slug='rapido-pago-total', name='Rapido Pago Total')
     user_garzon = _create_garzon_user(tenant)
     user_cajero = _create_cajero_user(tenant)
     product = _create_product(
@@ -170,6 +175,7 @@ def test_quick_flow_full_first_payment_confirms_and_discounts_inventory():
         tenant=tenant,
         order=order,
         payment_type=Transaction.PaymentType.TOTAL,
+        payment_method=_get_payment_method(tenant),
     )
 
     order.refresh_from_db()
@@ -184,7 +190,7 @@ def test_quick_flow_full_first_payment_confirms_and_discounts_inventory():
 
 @pytest.mark.django_db
 def test_payment_cannot_exceed_pending_total():
-    tenant = Tenant.objects.create(slug='sobrepago', name='Sobrepago')
+    tenant = TenantService.create_tenant(slug='sobrepago', name='Sobrepago')
     user_garzon = _create_garzon_user(tenant)
     user_cajero = _create_cajero_user(tenant)
     table = DiningTable.objects.create(tenant=tenant, numero='15')
@@ -199,12 +205,13 @@ def test_payment_cannot_exceed_pending_total():
             order=order,
             payment_type=Transaction.PaymentType.ABONO,
             amount=Decimal('3000.00'),
+            payment_method=_get_payment_method(tenant),
         )
 
 
 @pytest.mark.django_db
 def test_paid_item_becomes_immutable():
-    tenant = Tenant.objects.create(slug='item-inmutable', name='Item Inmutable')
+    tenant = TenantService.create_tenant(slug='item-inmutable', name='Item Inmutable')
     user_garzon = _create_garzon_user(tenant)
     user_cajero = _create_cajero_user(tenant)
     table = DiningTable.objects.create(tenant=tenant, numero='16')
@@ -217,6 +224,7 @@ def test_paid_item_becomes_immutable():
         order=order,
         payment_type=Transaction.PaymentType.PRODUCTOS,
         order_items=[item],
+        payment_method=_get_payment_method(tenant),
     )
 
     item.refresh_from_db()
@@ -227,7 +235,7 @@ def test_paid_item_becomes_immutable():
 
 @pytest.mark.django_db
 def test_multiple_partial_payments_accumulate():
-    tenant = Tenant.objects.create(slug='multiplos', name='Multiplos')
+    tenant = TenantService.create_tenant(slug='multiplos', name='Multiplos')
     user_garzon = _create_garzon_user(tenant)
     user_cajero = _create_cajero_user(tenant)
     table = DiningTable.objects.create(tenant=tenant, numero='17')
@@ -241,10 +249,11 @@ def test_multiple_partial_payments_accumulate():
         order=order,
         payment_type=Transaction.PaymentType.ABONO,
         amount=Decimal('2000.00'),
+        payment_method=_get_payment_method(tenant),
     )
     order.refresh_from_db()
     assert order.estado == Order.States.PAGADO_PARCIAL
-    assert TransactionSelector.total_paid(order) == Decimal('2000.00')
+    assert TransactionSelector.total_consumo_paid(order) == Decimal('2000.00')
 
     register_transaction(
         user=user_cajero,
@@ -252,10 +261,11 @@ def test_multiple_partial_payments_accumulate():
         order=order,
         payment_type=Transaction.PaymentType.ABONO,
         amount=Decimal('2500.00'),
+        payment_method=_get_payment_method(tenant),
     )
     order.refresh_from_db()
     assert order.estado == Order.States.PAGADO_PARCIAL
-    assert TransactionSelector.total_paid(order) == Decimal('4500.00')
+    assert TransactionSelector.total_consumo_paid(order) == Decimal('4500.00')
 
     register_transaction(
         user=user_cajero,
@@ -263,16 +273,17 @@ def test_multiple_partial_payments_accumulate():
         order=order,
         payment_type=Transaction.PaymentType.ABONO,
         amount=Decimal('500.00'),
+        payment_method=_get_payment_method(tenant),
     )
     order.refresh_from_db()
     assert order.estado == Order.States.COMPLETADO
-    assert TransactionSelector.total_paid(order) == Decimal('5000.00')
+    assert TransactionSelector.total_consumo_paid(order) == Decimal('5000.00')
     assert TransactionSelector.total_pending(order) == Decimal('0.00')
 
 
 @pytest.mark.django_db
 def test_product_payment_blocked_in_quick_flow():
-    tenant = Tenant.objects.create(slug='rapido-bloq', name='Rapido Bloqueado')
+    tenant = TenantService.create_tenant(slug='rapido-bloq', name='Rapido Bloqueado')
     user_garzon = _create_garzon_user(tenant)
     user_cajero = _create_cajero_user(tenant)
     product = _create_product(tenant=tenant, name='Burrito', price='3200.00')
@@ -286,12 +297,13 @@ def test_product_payment_blocked_in_quick_flow():
             order=order,
             payment_type=Transaction.PaymentType.PRODUCTOS,
             order_items=[item],
+            payment_method=_get_payment_method(tenant),
         )
 
 
 @pytest.mark.django_db
 def test_total_payment_direct_from_open_completes_immediately():
-    tenant = Tenant.objects.create(slug='directo', name='Directo')
+    tenant = TenantService.create_tenant(slug='directo', name='Directo')
     user_garzon = _create_garzon_user(tenant)
     user_cajero = _create_cajero_user(tenant)
     table = DiningTable.objects.create(tenant=tenant, numero='18')
@@ -305,6 +317,7 @@ def test_total_payment_direct_from_open_completes_immediately():
         tenant=tenant,
         order=order,
         payment_type=Transaction.PaymentType.TOTAL,
+        payment_method=_get_payment_method(tenant),
     )
 
     order.refresh_from_db()
@@ -315,7 +328,7 @@ def test_total_payment_direct_from_open_completes_immediately():
 
 @pytest.mark.django_db
 def test_quick_flow_partial_payment_stays_in_partial_state():
-    tenant = Tenant.objects.create(slug='rapido-parcial', name='Rapido Parcial')
+    tenant = TenantService.create_tenant(slug='rapido-parcial', name='Rapido Parcial')
     user_garzon = _create_garzon_user(tenant)
     user_cajero = _create_cajero_user(tenant)
     product = _create_product(tenant=tenant, name='Taco', price='2000.00')
@@ -328,6 +341,7 @@ def test_quick_flow_partial_payment_stays_in_partial_state():
         order=order,
         payment_type=Transaction.PaymentType.ABONO,
         amount=Decimal('2000.00'),
+        payment_method=_get_payment_method(tenant),
     )
 
     order.refresh_from_db()
@@ -337,8 +351,8 @@ def test_quick_flow_partial_payment_stays_in_partial_state():
 
 @pytest.mark.django_db
 def test_multitenancy_isolation_in_transactions():
-    tenant_a = Tenant.objects.create(slug='tenant-a-pago', name='Tenant A Pago')
-    tenant_b = Tenant.objects.create(slug='tenant-b-pago', name='Tenant B Pago')
+    tenant_a = TenantService.create_tenant(slug='tenant-a-pago', name='Tenant A Pago')
+    tenant_b = TenantService.create_tenant(slug='tenant-b-pago', name='Tenant B Pago')
     user_garzon_a = _create_garzon_user(tenant_a)
     user_garzon_b = _create_garzon_user(tenant_b)
     user_cajero_a = _create_cajero_user(tenant_a)
@@ -360,6 +374,7 @@ def test_multitenancy_isolation_in_transactions():
         tenant=tenant_a,
         order=order_a,
         payment_type=Transaction.PaymentType.TOTAL,
+        payment_method=_get_payment_method(tenant_a),
     )
 
     order_a.refresh_from_db()
@@ -367,13 +382,13 @@ def test_multitenancy_isolation_in_transactions():
 
     assert order_a.estado == Order.States.COMPLETADO
     assert order_b.estado == Order.States.ABIERTO
-    assert TransactionSelector.total_paid(order_a) == Decimal('1500.00')
-    assert TransactionSelector.total_paid(order_b) == Decimal('0.00')
+    assert TransactionSelector.total_consumo_paid(order_a) == Decimal('1500.00')
+    assert TransactionSelector.total_consumo_paid(order_b) == Decimal('0.00')
 
 
 @pytest.mark.django_db
 def test_cannot_pay_completed_or_cancelled_order():
-    tenant = Tenant.objects.create(slug='cerrado', name='Cerrado')
+    tenant = TenantService.create_tenant(slug='cerrado', name='Cerrado')
     user_garzon = _create_garzon_user(tenant)
     user_cajero = _create_cajero_user(tenant)
     table = DiningTable.objects.create(tenant=tenant, numero='21')
@@ -386,6 +401,7 @@ def test_cannot_pay_completed_or_cancelled_order():
         tenant=tenant,
         order=order,
         payment_type=Transaction.PaymentType.TOTAL,
+        payment_method=_get_payment_method(tenant),
     )
 
     order.refresh_from_db()
@@ -398,12 +414,13 @@ def test_cannot_pay_completed_or_cancelled_order():
             order=order,
             payment_type=Transaction.PaymentType.ABONO,
             amount=Decimal('100.00'),
+            payment_method=_get_payment_method(tenant),
         )
 
 
 @pytest.mark.django_db
 def test_total_paid_never_exceeds_total_bruto():
-    tenant = Tenant.objects.create(slug='invariante', name='Invariante')
+    tenant = TenantService.create_tenant(slug='invariante', name='Invariante')
     user_garzon = _create_garzon_user(tenant)
     user_cajero = _create_cajero_user(tenant)
     table = DiningTable.objects.create(tenant=tenant, numero='22')
@@ -411,7 +428,7 @@ def test_total_paid_never_exceeds_total_bruto():
     order = create_order(user=user_garzon, tenant=tenant, tipo_flujo=Order.Flow.MESA, table=table)
     add_or_update_item_in_order(user=user_garzon, order=order, product=product, cantidad=1)
 
-    assert TransactionSelector.total_paid(order) == Decimal('0.00')
+    assert TransactionSelector.total_consumo_paid(order) == Decimal('0.00')
     assert TransactionSelector.total_pending(order) == Decimal('1000.00')
 
     register_transaction(
@@ -419,7 +436,8 @@ def test_total_paid_never_exceeds_total_bruto():
         tenant=tenant,
         order=order,
         payment_type=Transaction.PaymentType.TOTAL,
+        payment_method=_get_payment_method(tenant),
     )
 
-    assert TransactionSelector.total_paid(order) == Decimal('1000.00')
-    assert TransactionSelector.total_paid(order) <= order.total_bruto
+    assert TransactionSelector.total_consumo_paid(order) == Decimal('1000.00')
+    assert TransactionSelector.total_consumo_paid(order) <= order.total_bruto

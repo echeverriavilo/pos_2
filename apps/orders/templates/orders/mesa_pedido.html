@@ -154,9 +154,10 @@
 
 <div id="cuenta-container">
 
+{# 1. Detalle de productos #}
 <div class="card mb-2">
     <div class="card-header bg-dark text-white py-1 px-2 d-flex justify-content-between align-items-center">
-        <strong><i class="bi bi-receipt me-1"></i>Cuenta</strong>
+        <strong><i class="bi bi-receipt me-1"></i>Productos</strong>
         {% if table.estado == 'PAGANDO' %}
         <span class="badge bg-warning text-dark">PAGANDO</span>
         {% elif table.estado == 'OCUPADA' %}
@@ -165,7 +166,7 @@
     </div>
     <div class="card-body p-2">
         {% if paid_items %}
-        <small class="text-muted fw-bold text-uppercase">Productos pagados</small>
+        <small class="text-muted fw-bold text-uppercase d-block mb-1">Pagados</small>
         {% for item in paid_items %}
         <div class="d-flex justify-content-between py-1 px-1 text-decoration-line-through text-muted" style="font-size: 0.85rem;">
             <span>{{ item.cantidad }}x {{ item.product.nombre }}</span>
@@ -176,7 +177,7 @@
         {% endif %}
 
         {% if unpaid_items %}
-        <small class="text-muted fw-bold text-uppercase">Productos pendientes</small>
+        <small class="text-muted fw-bold text-uppercase d-block mb-1">Pendientes</small>
         {% for item in unpaid_items %}
         <div class="d-flex justify-content-between py-1 px-1" style="font-size: 0.85rem;">
             <span>{{ item.cantidad }}x {{ item.product.nombre }}</span>
@@ -196,6 +197,7 @@
     </div>
 </div>
 
+{# 2. Desglose #}
 <div class="card mb-2">
     <div class="card-header bg-light py-1 px-2">
         <strong><i class="bi bi-calculator me-1"></i>Desglose</strong>
@@ -210,46 +212,82 @@
             <span>${{ iva_breakdown.iva|floatformat:0 }}</span>
         </div>
         <div class="d-flex justify-content-between mb-1 fw-bold">
-            <span>Subtotal:</span>
-            <span>${{ iva_breakdown.total_bruto|floatformat:0 }}</span>
+            <span>Total Consumo:</span>
+            <span>${{ total_consumo|floatformat:0 }}</span>
         </div>
-        <div class="d-flex justify-content-between mb-1">
-            <span>Propina:</span>
-            <span>{% if order.propina_monto > 0 %}<span class="text-success fw-bold">${{ order.propina_monto|floatformat:0 }}</span>{% else %}$0{% endif %}</span>
+        <div class="d-flex justify-content-between mb-1 text-muted">
+            <span>Propina sugerida 10%:</span>
+            <span>${{ suggested_tip|floatformat:0 }}</span>
         </div>
     </div>
 </div>
 
+{# 3. Pagos #}
+{% if transactions %}
 <div class="card mb-2">
     <div class="card-header bg-light py-1 px-2">
-        <strong><i class="bi bi-cash-coin me-1"></i>Total Cuenta</strong>
+        <strong><i class="bi bi-clock-history me-1"></i>Pagos</strong>
     </div>
-    <div class="card-body p-2" style="font-size: 0.9rem;">
-        <div class="d-flex justify-content-between fw-bold fs-5">
-            <span>Total:</span>
-            <span class="text-success">${{ total_cuenta|floatformat:0 }}</span>
-        </div>
-        {% if total_paid > 0 %}
-        <hr class="my-2">
-        <div class="d-flex justify-content-between mb-1">
-            <span>Pagado:</span>
-            <span class="text-primary">${{ total_paid|floatformat:0 }}</span>
-        </div>
-        {% if transactions %}
-        {% for txn in transactions %}
-        <div class="d-flex justify-content-between ps-3" style="font-size: 0.8rem;">
-            <span><span class="badge bg-secondary">{{ txn.tipo_pago }}</span></span>
-            <span>${{ txn.monto|floatformat:0 }}</span>
-        </div>
-        {% endfor %}
-        {% endif %}
-        <div class="d-flex justify-content-between fw-bold text-danger fs-5 mt-1">
-            <span>Pendiente:</span>
-            <span>${{ total_pending|floatformat:0 }}</span>
-        </div>
-        {% endif %}
+    <div class="card-body p-0" style="font-size: 0.8rem;">
+        <table class="table table-sm table-striped mb-0">
+            <thead class="table-light">
+                <tr>
+                    <th>Tipo</th>
+                    <th>Forma de pago</th>
+                    <th class="text-end">Consumo</th>
+                    <th class="text-end">Propina</th>
+                    <th class="text-end">Total</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for txn in transactions %}
+                <tr>
+                    <td><span class="badge bg-secondary">{{ txn.tipo_pago }}</span></td>
+                    <td>{{ txn.payment_method.nombre|default:"-" }}</td>
+                    <td class="text-end">${{ txn.monto|floatformat:0 }}</td>
+                    <td class="text-end">{% if txn.tip_amount > 0 %}${{ txn.tip_amount|floatformat:0 }}{% else %}-{% endif %}</td>
+                    <td class="text-end fw-bold">${% if txn.tip_amount > 0 %}{{ txn.monto|add:txn.tip_amount|floatformat:0 }}{% else %}{{ txn.monto|floatformat:0 }}{% endif %}</td>
+                </tr>
+                {% endfor %}
+            </tbody>
+            {% if total_pagado > 0 %}
+            <tfoot class="table-light">
+                <tr class="fw-bold">
+                    <td colspan="2">Total pagado</td>
+                    <td class="text-end">${{ total_consumo_paid|floatformat:0 }}</td>
+                    <td class="text-end">{% if total_tip_paid > 0 %}${{ total_tip_paid|floatformat:0 }}{% else %}-{% endif %}</td>
+                    <td class="text-end text-primary">${{ total_pagado|floatformat:0 }}</td>
+                </tr>
+            </tfoot>
+            {% endif %}
+        </table>
     </div>
 </div>
+{% endif %}
+
+{# 4. Pendiente de pago #}
+{% if total_pending > 0 %}
+<div class="card mb-2">
+    <div class="card-header bg-light py-1 px-2">
+        <strong><i class="bi bi-cash-coin me-1"></i>Pendiente de Pago</strong>
+    </div>
+    <div class="card-body p-2" style="font-size: 0.9rem;">
+        <div class="d-flex justify-content-between mb-1 fw-bold text-danger">
+            <span>Consumo pendiente:</span>
+            <span>${{ total_pending|floatformat:0 }}</span>
+        </div>
+        <div class="d-flex justify-content-between mb-1 text-muted">
+            <span>Propina sugerida 10%:</span>
+            <span>${{ suggested_tip_pending|floatformat:0 }}</span>
+        </div>
+        <hr>
+        <div class="d-flex justify-content-between fw-bold fs-5">
+            <span>Total pendiente:</span>
+            <span class="text-success">${{ total_pending_with_tip|floatformat:0 }}</span>
+        </div>
+    </div>
+</div>
+{% endif %}
 
 </div>
 

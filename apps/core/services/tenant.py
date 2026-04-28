@@ -6,6 +6,13 @@ from apps.core.models import Permission, Role, RolePermission, Tenant
 
 BASE_ROLES = ['administrador', 'cajero', 'garzón']
 
+BASE_PAYMENT_METHODS = [
+    'Efectivo',
+    'Tarjeta Débito',
+    'Tarjeta Crédito',
+    'Transferencia',
+]
+
 ROLE_PERMISSIONS = {
     'administrador': [
         'create_order',
@@ -40,6 +47,7 @@ class TenantService:
                 config_flujo_mesas=config_flujo_mesas,
             )
             cls._seed_roles(tenant)
+            cls._seed_payment_methods(tenant)
             return tenant
 
     @classmethod
@@ -54,6 +62,14 @@ class TenantService:
             for perm_codename in perms:
                 perm, _ = Permission.objects.get_or_create(codename=perm_codename)
                 RolePermission.objects.get_or_create(role=role, permission=perm)
+
+    @classmethod
+    def _seed_payment_methods(cls, tenant: Tenant):
+        from apps.orders.models import PaymentMethod
+        payment_methods = []
+        for idx, nombre in enumerate(BASE_PAYMENT_METHODS, start=1):
+            payment_methods.append(PaymentMethod(tenant=tenant, nombre=nombre, orden=idx, activo=True))
+        PaymentMethod.objects.bulk_create(payment_methods)
 
     @staticmethod
     def get_base_roles():

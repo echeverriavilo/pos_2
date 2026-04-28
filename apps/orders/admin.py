@@ -4,7 +4,7 @@ from .models import Order, OrderItem, Transaction, TransactionItem
 
 @admin.register(Order)
 class OrderAdmin(admin.ModelAdmin):
-    list_display = ('id', 'tenant', 'tipo_flujo', 'estado', 'total_bruto', 'propina_monto')
+    list_display = ('id', 'tenant', 'tipo_flujo', 'estado', 'total_bruto')
     list_filter = ('estado', 'tenant', 'tipo_flujo')
     search_fields = ('id', 'tenant__slug')
     ordering = ('-id',)

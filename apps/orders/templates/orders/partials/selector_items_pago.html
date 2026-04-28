@@ -28,7 +28,9 @@
         <span id="selected-total">$0</span>
     </div>
     
-    <button type="button" class="btn btn-success w-100" id="btn-pay-products" disabled onclick="submitProductsPayment('{{ order.id }}', event)">
+    {% include "orders/partials/propina_input.html" with tip_selector_id=tip_selector_id %}
+    
+    <button type="button" class="btn btn-success w-100 mt-2" id="btn-pay-products" disabled onclick="submitProductsPayment('{{ order.id }}', event)">
         <i class="bi bi-check-circle me-1"></i>Pagar seleccionados
     </button>
 </div>

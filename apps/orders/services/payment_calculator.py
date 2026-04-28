@@ -45,33 +45,4 @@ def calculate_suggested_tip(order: Order) -> Decimal:
     return order.total_bruto * Decimal('0.10')
 
 
-def set_tip(user, order: Order, amount: Decimal) -> Order:
-    """Establece el monto de propina en una orden.
 
-    Parámetros:
-    - user: usuario que ejecuta la operación.
-    - order: orden a modificar.
-    - amount: monto de propina a establecer.
-
-    Retorno:
-    - Order actualizada con la nueva propina.
-
-    Efectos secundarios:
-    - Actualiza order.propina_monto dentro de una transacción atómica.
-    """
-    validate_role_permission(user, SystemActions.REGISTER_PAYMENT)
-    validate_tenant_access(user, order.tenant)
-
-    active_states = {Order.States.ABIERTO, Order.States.PAGADO_PARCIAL}
-    if order.estado not in active_states:
-        raise PaymentCalculatorError('Solo se puede modificar la propina en órdenes abiertas o con pago parcial.')
-
-    amount = Decimal(amount)
-    if amount < Decimal('0'):
-        raise PaymentCalculatorError('El monto de propina no puede ser negativo.')
-
-    with transaction.atomic():
-        locked_order = Order.objects.select_for_update().get(pk=order.pk)
-        locked_order.propina_monto = amount
-        locked_order.save(update_fields=['propina_monto'])
-        return locked_order
