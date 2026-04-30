@@ -25,7 +25,8 @@ class Product(models.Model):
     es_inventariable = models.BooleanField(default=True)
     stock_actual = models.DecimalField(max_digits=12, decimal_places=2, default=Decimal('0'))
     image_url = models.URLField(blank=True, null=True)
-    is_active = models.BooleanField(default=True)
+    is_active = models.BooleanField(default=True, help_text='Pausa temporal (productos estacionales, fuera de temporada)')
+    inhabilitado = models.BooleanField(default=False, help_text='Inhabilitación permanente — no se puede reactivar')
 
     objects = TenantAwareManager()
 
@@ -34,4 +35,4 @@ class Product(models.Model):
         unique_together = (('tenant', 'nombre'),)
 
     def __str__(self):
-        return f"{self.nombre} ({self.tenant.slug})"
+        return self.nombre

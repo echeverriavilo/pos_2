@@ -11,7 +11,8 @@ class Category(models.Model):
         related_name='categories',
     )
     nombre = models.CharField(max_length=255)
-    is_active = models.BooleanField(default=True)
+    is_active = models.BooleanField(default=True, help_text='Pausa temporal (productos estacionales, fuera de temporada)')
+    inhabilitado = models.BooleanField(default=False, help_text='Inhabilitación permanente — no se puede reactivar')
 
     objects = TenantAwareManager()
 
@@ -20,4 +21,4 @@ class Category(models.Model):
         unique_together = (('tenant', 'nombre'),)
 
     def __str__(self):
-        return f"{self.nombre} ({self.tenant.slug})"
+        return self.nombre

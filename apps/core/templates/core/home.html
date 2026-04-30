@@ -97,5 +97,35 @@
             </div>
         </a>
     </div>
+    <div class="col-md-4 col-6">
+        <a href="{% url 'core:role-list' %}" class="text-decoration-none">
+            <div class="card h-100 dashboard-card">
+                <div class="card-body text-center">
+                    <i class="bi bi-people display-4"></i>
+                    <h6 class="mt-3 mb-0">Roles</h6>
+                </div>
+            </div>
+        </a>
+    </div>
+    <div class="col-md-4 col-6">
+        <a href="{% url 'core:user-list' %}" class="text-decoration-none">
+            <div class="card h-100 dashboard-card">
+                <div class="card-body text-center">
+                    <i class="bi bi-person-badge display-4"></i>
+                    <h6 class="mt-3 mb-0">Usuarios</h6>
+                </div>
+            </div>
+        </a>
+    </div>
+    <div class="col-md-4 col-6">
+        <a href="{% url 'orders:payment-method-list' %}" class="text-decoration-none">
+            <div class="card h-100 dashboard-card">
+                <div class="card-body text-center">
+                    <i class="bi bi-credit-card display-4"></i>
+                    <h6 class="mt-3 mb-0">Mét. Pago</h6>
+                </div>
+            </div>
+        </a>
+    </div>
 </div>
 {% endblock %}

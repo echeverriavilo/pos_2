@@ -118,6 +118,46 @@
 - **Cuadratura general derivada**: `monto_cierre_declarado` general se calcula como suma de los montos declarados por medio de pago (backend). No es un input separado.
 - **Apertura en breakdown Efectivo**: el `monto_apertura` de la sesion se suma al "Total sistema" del metodo Efectivo en el breakdown de cuadratura, tanto en pantalla como al crear CashCloseDetail.
 
-- El orden de informacion en vista de mesas y cuenta es: Productos → Desglose → Pagos (tabla) → Pendiente de Pago.
-- La tabla de pagos muestra columnas: Tipo | Forma de pago | Consumo | Propina | Total.
-- El modal de pagos es para ingresar pagos, no para consultar historial. Se elimina el detalle de pagos realizados del modal.
+## 2026-04-30 - CRUD Backoffice (Tarea 014)
+
+- Se implementan vistas CRUD completas para 5 entidades operativas: Category, Product, Role, User (via Membership), PaymentMethod.
+- Patron: Django ModelForms + servicios existentes + queries tenant-aware. Permisos: `manage_inventory` (catalogo), `manage_users` (roles/usuarios), `manage_cash_registers` (formas de pago).
+- UI server-rendered con tablas Bootstrap responsive. Formularios con card centrado. Acciones inline (editar link, pausar POST, inhabilitar POST con confirmacion JS).
+- Modales HTMX junto a selects FK para creacion rapida de entidades relacionadas (categoria desde producto, rol desde usuario).
+
+## 2026-04-30 - Semantica inhabilitar vs pausar
+
+- Dos mecanismos distintos de desactivacion por entidad operativa:
+  - **Inhabilitar** (`inhabilitado`): permanente, no reversible desde UI. El elemento no aparece en listas ni informes. Equivalente funcional a "eliminar" para el usuario.
+  - **Pausar** (`is_active` / `activo` / `pausado`): temporal y reversible. El elemento aparece al final de listas con badge visual "Pausado".
+- Para User: `inhabilitado=True` + `is_active=False` bloquea login permanentemente. `pausado=True` es solo marca visual sin bloquear login.
+- Campos agregados: `inhabilitado` (Category, Product, Role, PaymentMethod, User), `pausado` (User), `is_active` (Role).
+
+## 2026-04-30 - Formato de numeros CLP
+
+- Widget `CLPNumberInput` en `apps/catalog/forms.py`: extiende `NumberInput`, `format_value` formatea sin decimales con punto como separador de miles (`15000 → 15.000`).
+- Template tag `|currency` en `apps/core/templatetags/currency.py`: `$X.XXX` (sin decimales, punto separador de miles).
+- Precio usa `CLPNumberInput` + input-group con prefijo `$` en el template. Stock usa solo `CLPNumberInput` (no monetario).
+- Ambos campos usan `step="1"` para prevenir entrada decimal en navegador.
+
+## 2026-04-30 - Modales de creacion rapida para FK
+
+- Boton `[+]` junto a `<select>` de FK (categoria en product_form, rol en user_form) dispara HTMX GET a un modal Bootstrap con formulario de creacion.
+- El modal solo contiene formulario de creacion, sin list-group redundante (el `<select>` ya lista los existentes).
+- Vistas: `category_select_modal` (`/catalogo/categorias/modal/`), `role_select_modal` (`/roles/modal/`). Ambas soportan GET (mostrar modal) y POST (crear y refrescar modal).
+
+## 2026-04-30 - Validacion de duplicados en servicios
+
+- `ProductService.create_product` y `update_product` validan unicidad de nombre por tenant antes de persistir, con `ValidationError` amigable. Evita `IntegrityError` 500 desde la BD.
+- `CategoryService.create_category` y `update_category` aplican la misma validacion.
+
+## 2026-04-30 - `__str__` sin tenant en modelos de dominio
+
+- Category, Product, Role y PaymentMethod retornan solo su nombre en `__str__`. El tenant es implicito para el usuario (solo opera en uno).
+- CustomUser retorna `get_short_name()` (first_name o parte local del email).
+- Eliminado `({self.tenant.slug})` y `@ {self.tenant.slug}` de todas las representaciones.
+
+## 2026-04-30 - Bug: `save(update_fields=['email'])` en AbstractBaseUser
+
+- **Problema**: `user.save(update_fields=['email'])` no persiste cambios cuando `email` es `USERNAME_FIELD`. El registro en BD no se actualiza, pero Django no lanza error.
+- **Solucion**: `UserService.update_tenant_user` usa `user.save()` completo sin `update_fields` para garantizar persistencia de todos los campos modificados.

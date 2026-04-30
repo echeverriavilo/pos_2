@@ -102,6 +102,24 @@
                         <span>Configuración</span>
                     </a>
                 </li>
+                <li class="nav-item">
+                    <a class="nav-link" href="{% url 'core:role-list' %}">
+                        <i class="bi bi-people"></i>
+                        <span>Roles</span>
+                    </a>
+                </li>
+                <li class="nav-item">
+                    <a class="nav-link" href="{% url 'core:user-list' %}">
+                        <i class="bi bi-person-badge"></i>
+                        <span>Usuarios</span>
+                    </a>
+                </li>
+                <li class="nav-item">
+                    <a class="nav-link" href="{% url 'orders:payment-method-list' %}">
+                        <i class="bi bi-credit-card"></i>
+                        <span>Mét. Pago</span>
+                    </a>
+                </li>
             </ul>
         </nav>
 

@@ -40,6 +40,8 @@ class CustomUser(AbstractBaseUser, PermissionsMixin):
     first_name = models.CharField(max_length=64, blank=True)
     last_name = models.CharField(max_length=64, blank=True)
     is_active = models.BooleanField(default=True)
+    inhabilitado = models.BooleanField(default=False, help_text='Inhabilitación permanente — no puede volver a activarse')
+    pausado = models.BooleanField(default=False, help_text='Pausa temporal (vacaciones, licencia)')
     is_staff = models.BooleanField(default=False)
     is_superuser = models.BooleanField(default=False)
     is_platform_staff = models.BooleanField(default=False)
@@ -53,7 +55,7 @@ class CustomUser(AbstractBaseUser, PermissionsMixin):
     objects = CustomUserManager()
 
     def __str__(self):
-        return self.email
+        return self.get_short_name()
 
     @property
     def tenant(self):

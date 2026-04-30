@@ -11,7 +11,8 @@ class PaymentMethod(models.Model):
         related_name='payment_methods',
     )
     nombre = models.CharField(max_length=50)
-    activo = models.BooleanField(default=True)
+    activo = models.BooleanField(default=True, help_text='Pausa temporal (método fuera de uso temporal)')
+    inhabilitado = models.BooleanField(default=False, help_text='Inhabilitación permanente — no se puede reactivar')
     orden = models.IntegerField(default=0)
     created_at = models.DateTimeField(auto_now_add=True)
 
@@ -22,7 +23,7 @@ class PaymentMethod(models.Model):
         unique_together = ('tenant', 'nombre')
 
     def __str__(self):
-        return f"{self.nombre} ({self.tenant.slug})"
+        return self.nombre
 
     def save(self, *args, **kwargs):
         if self.pk and self.__dict__.get('tenant') is None:

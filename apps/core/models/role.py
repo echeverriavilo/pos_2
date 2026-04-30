@@ -9,6 +9,8 @@ class Role(models.Model):
     tenant = models.ForeignKey(Tenant, on_delete=models.CASCADE, related_name='roles')
     name = models.CharField(max_length=64)
     description = models.TextField(blank=True, default='')
+    is_active = models.BooleanField(default=True, help_text='Pausa temporal (roles de uso esporádico)')
+    inhabilitado = models.BooleanField(default=False, help_text='Inhabilitación permanente — no se puede reactivar')
     permissions = models.ManyToManyField(Permission, through='core.RolePermission')
     created_at = models.DateTimeField(auto_now_add=True)
 
@@ -20,7 +22,7 @@ class Role(models.Model):
         ordering = ('name',)
 
     def __str__(self):
-        return f"{self.name} @ {self.tenant.slug}"
+        return self.name
 
     def has_permission(self, codename: str, active_only: bool = True) -> bool:
         from apps.core.models import RolePermission

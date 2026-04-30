@@ -124,6 +124,8 @@ Restricciones de producto:
 - `is_platform_staff: boolean`
 - `pin_hash: string nullable`
 - `pin_enabled: boolean`
+- `inhabilitado: boolean (default false)`
+- `pausado: boolean (default false)`
 - `date_joined: datetime`
 
 Reglas:
@@ -131,7 +133,9 @@ Reglas:
 - el tenant y rol operativo se resuelven via membership;
 - `platform_staff` no tiene tenant fijo;
 - el PIN es opcional y operativo;
-- `get_short_name()` debe resolver nombre corto para UI.
+- `get_short_name()` debe resolver nombre corto para UI;
+- `inhabilitado=True` + `is_active=False` bloquea login permanentemente (equivalente a "eliminar");
+- `pausado=True` es marca visual de pausa temporal, no bloquea login.
 
 ### Membership
 
@@ -149,13 +153,17 @@ Reglas:
 - `tenant: FK(Tenant)`
 - `name: string`
 - `description: text`
+- `is_active: boolean (default true)`
+- `inhabilitado: boolean (default false)`
 - `permissions: M2M(Permission, through RolePermission)`
 - `created_at: datetime`
 
 Reglas:
 
 - nombre unico por tenant;
-- roles base: administrador, cajero, garzon.
+- roles base: administrador, cajero, garzon;
+- `is_active` controla pausa temporal (reversible);
+- `inhabilitado` es permanente (no reversible desde UI, no aparece en listas).
 
 ### Permission
 
@@ -172,6 +180,9 @@ Permisos del sistema:
 - `manage_users`
 - `manage_tables`
 - `manage_devices`
+- `manage_cash_registers`
+- `open_cash_session`
+- `close_cash_session`
 
 ### RolePermission
 
@@ -184,15 +195,20 @@ Permisos del sistema:
 
 - `tenant: FK`
 - `nombre: string`
+- `is_active: boolean (default true)`
+- `inhabilitado: boolean (default false)`
 
 ### Product
 
 - `tenant: FK`
 - `category: FK`
 - `nombre: string`
+- `description: text`
 - `precio_bruto: decimal`
 - `es_inventariable: boolean`
 - `stock_actual: decimal`
+- `is_active: boolean (default true)`
+- `inhabilitado: boolean (default false)`
 
 ### Ingredient
 
@@ -263,13 +279,16 @@ Regla:
 
 - `tenant: FK(Tenant)`
 - `nombre: string`
-- `activo: boolean`
+- `activo: boolean (default true)`
+- `inhabilitado: boolean (default false)`
 - `orden: int`
 
 Reglas:
 
 - medios de pago base por defecto: efectivo, tarjeta debito, tarjeta credito y transferencia;
-- cada tenant puede personalizar su catalogo de medios de pago.
+- cada tenant puede personalizar su catalogo de medios de pago;
+- `activo` controla pausa temporal (reversible);
+- `inhabilitado` es permanente (no reversible desde UI, no aparece en listas).
 
 ### CashRegister
 
@@ -598,7 +617,21 @@ Cada app usa:
 - `selectors/`
 - `tests/`
 
-### Reglas de codigo
+### Formato de numeros
+
+- moneda: `$X.XXX` sin decimales, punto como separador de miles (CLP).
+- implementado via widget `CLPNumberInput` (formatea sin decimales, punto separador) y template tag `|currency` (`$X.XXX`).
+- campos no monetarios con cantidades enteras usan `CLPNumberInput` sin prefijo `$`.
+- campos monetarios usan `CLPNumberInput` + input-group con `$` en el template.
+
+### Estados de activacion por entidad
+
+Cada entidad operativa (Category, Product, Role, PaymentMethod, User) tiene dos mecanismos de desactivacion:
+
+- **Pausa temporal** (`is_active` / `activo` / `pausado`): reversible. El elemento sigue existiendo pero aparece al final de listas con indicador visual "Pausado".
+- **Inhabilitacion permanente** (`inhabilitado`): irreversible desde UI. El elemento no aparece en listas ni informes. Equivalente funcional a "eliminar" para el usuario.
+
+Para usuarios: `inhabilitado=True` + `is_active=False` bloquea login. `pausado=True` es solo marca visual.
 
 - codigo explicito, trazable a spec y sin ambiguedad;
 - nombres de clases en PascalCase;

@@ -1,0 +1,48 @@
+<div class="modal fade" id="roleSelectModal" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog modal-sm">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">Nuevo Rol</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Cerrar"></button>
+            </div>
+            <div class="modal-body">
+                <form method="post"
+                      hx-post="{% url 'core:role-select-modal' %}"
+                      hx-target="#modal-container"
+                      hx-swap="innerHTML">
+                    {% csrf_token %}
+                    <div class="mb-3">
+                        <label class="form-label">Nombre del rol</label>
+                        <input type="text" name="name" class="form-control" placeholder="Ej: Supervisor" required autofocus>
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label">Descripción (opcional)</label>
+                        <input type="text" name="description" class="form-control form-control-sm" placeholder="Descripción breve del rol">
+                    </div>
+                    <div class="d-flex justify-content-end gap-2">
+                        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancelar</button>
+                        <button type="submit" class="btn btn-primary">
+                            <i class="bi bi-plus-circle me-1"></i>Crear
+                        </button>
+                    </div>
+                    {% if error %}
+                    <div class="text-danger small mt-2">{{ error }}</div>
+                    {% endif %}
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+    (function() {
+        var modalEl = document.getElementById('roleSelectModal');
+        if (modalEl._bootstrapModal) modalEl._bootstrapModal.dispose();
+        var modal = new bootstrap.Modal(modalEl);
+        modalEl._bootstrapModal = modal;
+        modal.show();
+        modalEl.addEventListener('hidden.bs.modal', function () {
+            document.getElementById('modal-container').innerHTML = '';
+        });
+    })();
+</script>

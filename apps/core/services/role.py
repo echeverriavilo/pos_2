@@ -206,3 +206,17 @@ class RoleService:
         - True si tiene el permiso.
         """
         return role.has_permission(permission_codename, active_only=active_only)
+
+    @classmethod
+    def toggle_active(cls, *, role: Role) -> Role:
+        """Activa o desactiva un rol.
+
+        Parámetros:
+        - role: rol a activar/desactivar.
+
+        Retorna:
+        - Role actualizado.
+        """
+        role.is_active = not role.is_active
+        role.save(update_fields=['is_active'])
+        return role

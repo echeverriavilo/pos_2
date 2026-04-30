@@ -1,5 +1,5 @@
 from django.urls import path
-from . import views
+from . import views, views_payment_methods
 from .views_cash import (
     caja_lista,
     caja_crear,
@@ -42,4 +42,9 @@ urlpatterns = [
     path('caja/sesion/<int:session_id>/confirmar/', sesion_confirmar, name='sesion-confirmar'),
     path('caja/sesion/<int:session_id>/movimiento/', sesion_movimiento, name='sesion-movimiento'),
     path('caja/cierres/', sesiones_cerradas, name='sesiones-cerradas'),
+    path('metodos-pago/', views_payment_methods.payment_method_list, name='payment-method-list'),
+    path('metodos-pago/crear/', views_payment_methods.payment_method_create, name='payment-method-create'),
+    path('metodos-pago/<int:pk>/editar/', views_payment_methods.payment_method_edit, name='payment-method-edit'),
+    path('metodos-pago/<int:pk>/pausar/', views_payment_methods.payment_method_toggle, name='payment-method-toggle'),
+    path('metodos-pago/<int:pk>/inhabilitar/', views_payment_methods.payment_method_inhabilitar, name='payment-method-inhabilitar'),
 ]
